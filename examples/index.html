@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harpy examples</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { --bg: #f3f4f6; --text: #1c1f25; --muted: #5e6572; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0e1013; --text: #e5e7eb; --muted: #9aa1ad; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 1100px; margin: 0 auto; padding: 40px 16px 80px; }
+    h1 { margin: 0 0 4px; font-size: 1.75rem; }
+    main > p { margin: 0 0 32px; color: var(--muted); }
+    h2.section { margin: 48px 0 12px; font-size: 1.1rem; }
+    kbd { font: 12px ui-monospace, monospace; padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; opacity: .7; }
+  </style>
+  <script type="module" src="../src/harpy.js"></script>
+</head>
+<body>
+<main>
+  <h1>Harpy</h1>
+  <p>Mermaid diagrams you can step through. Use the arrows, the dots, or <kbd>←</kbd> <kbd>→</kbd> once a diagram has focus. Switch to <em>Side by side</em> to edit the source live.</p>
+
+  <h2 class="section">Flowchart</h2>
+  <harpy-diagram id="checkout">
+    <script type="text/harpy">
+      # Checkout flow
+
+      How an order moves from the cart to fulfilment.
+
+      ```harpy
+      flowchart LR
+      %% @step cart "Filling the cart"
+        U([Customer]) --> C[Cart]
+      %% @step pay "Paying" focus=P
+        C --> P{Payment OK?}
+      %% @step outcome "Outcomes"
+        P -->|yes| O[Create order]
+        P -->|no| R[Show error]
+        R -.-> C
+      %% @step ship "Fulfilment"
+        subgraph W [Warehouse]
+          K[Pick & pack] --> S[Ship]
+        end
+        O --> K
+      ```
+
+      ## cart
+      The customer adds items. Nothing is persisted yet: the cart lives in **session storage**.
+
+      ## pay
+      The payment provider answers synchronously. We wait for at most `5s` before treating
+      the attempt as failed.
+
+      ## outcome
+      A failed payment never loses the cart: the customer goes back to it with an inline error.
+
+      ## ship
+      Orders are handed to the warehouse queue. Picking and shipping happen asynchronously.
+
+      ## summary
+      The flow stays stateless until **Create order**. Everything after that is owned by the warehouse.
+    </script>
+  </harpy-diagram>
+
+  <h2 class="section">Sequence diagram, side by side</h2>
+  <harpy-diagram mode="split">
+    <script type="text/harpy">
+      # Login with a token
+
+      ```harpy
+      sequenceDiagram
+        participant B as Browser
+        participant A as API
+        participant D as Database
+      %% @step request "Credentials"
+        B->>A: POST /login
+      %% @step check "Checking the password" focus=D
+        A->>D: find user
+        D-->>A: user + hash
+      %% @step token "Issuing a token"
+        alt password matches
+          A-->>B: 200 + JWT
+        else wrong password
+          A-->>B: 401
+        end
+      ```
+
+      ## request
+      The browser sends the credentials over HTTPS.
+
+      ## check
+      The API loads the user and compares the password with the stored **bcrypt** hash.
+
+      ## token
+      On success the API returns a short-lived JWT. On failure it returns `401` without saying
+      which part was wrong.
+
+      ## summary
+      The database never sees the plain password, and the browser never sees the hash.
+    </script>
+  </harpy-diagram>
+</main>
+</body>
+</html>
