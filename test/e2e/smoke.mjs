@@ -5,28 +5,13 @@
 //   CHROMIUM_PATH=/path/to/chrome npm run test:e2e
 //   SCREENSHOTS=/some/dir npm run test:e2e # also save screenshots
 
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { serve } from '../../scripts/serve.mjs';
 
-const root = fileURLToPath(new URL('../..', import.meta.url));
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.md': 'text/markdown' };
-
-const server = createServer(async (req, res) => {
-  const path = normalize(join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname)));
-  if (!path.startsWith(root)) return res.writeHead(403).end();
-  try {
-    const body = await readFile(path);
-    res.writeHead(200, { 'content-type': types[extname(path)] ?? 'application/octet-stream' }).end(body);
-  } catch {
-    res.writeHead(404).end();
-  }
-});
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const base = `http://127.0.0.1:${server.address().port}`;
+const server = await serve(fileURLToPath(new URL('../..', import.meta.url)));
+const base = server.url;
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const shots = process.env.SCREENSHOTS;
@@ -162,6 +147,33 @@ try {
   await check('no page errors', async () => {
     assert.deepEqual(errors, [], errors.join("\n"));
   });
+
+  // The website, served from docs/ alone as GitHub Pages does.
+  const site = await serve(fileURLToPath(new URL('../../docs/', import.meta.url)));
+  try {
+    for (const path of ['/', '/themes.html']) {
+      await check(`site ${path}: diagrams render without errors`, async () => {
+        const p = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+        const errs = [];
+        p.on('pageerror', (e) => errs.push(e.message));
+        p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
+        p.on('requestfailed', (r) => errs.push(`failed: ${r.url()}`));
+        await p.goto(site.url + path);
+        await p.waitForFunction(() => [...document.querySelectorAll('harpy-diagram')].every((d) => d.shadowRoot?.querySelector('svg.hd') && d.steps.length));
+        if (path === '/themes.html') {
+          assert.equal(await p.locator('.card').count(), 10);
+          await p.locator('.pick[aria-label="Gruvbox light"]').click();
+          assert.deepEqual(await p.evaluate(() => [...document.querySelectorAll('.diagrams harpy-diagram')].map((d) => d.getAttribute('theme'))), ['gruvbox-light', 'gruvbox-light']);
+          assert.match(await p.locator('#load-script').textContent(), /dist\/themes\/gruvbox-light\/harpy\.min\.js/);
+          if (shots) await p.screenshot({ path: `${shots}/themes.png`, fullPage: true });
+        }
+        assert.deepEqual(errs, [], errs.join('\n'));
+        await p.close();
+      });
+    }
+  } finally {
+    site.close();
+  }
 
   if (shots) {
     const mobile = await browser.newPage({ viewport: { width: 390, height: 900 }, colorScheme: 'dark' });

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harpy themes</title>
+  <meta name="description" content="Every Harpy colour theme on a flowchart and a sequence diagram, with a ready-made build for each.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230f0a17'/%3E%3Cpath d='M12 3.5 16 7.5 12 11.5 8 7.5Z M12 11.5V14 M7 14H17 M7 14V16 M17 14V16 M4.5 16H9.5V20H4.5Z M14.5 16H19.5V20H14.5Z' fill='none' stroke='%23ffb877' stroke-width='1.3' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    // Apply a saved page theme before first paint.
+    try {
+      const saved = localStorage.getItem('harpy-theme');
+      if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+    } catch {}
+  </script>
+  <script src="harpy.min.js" defer></script>
+  <link rel="stylesheet" href="site.css">
+  <style>
+    .intro { padding: 40px 0 8px; }
+    .intro h1 { font-size: clamp(40px, 5.6vw, 64px); line-height: 1.05; margin-bottom: 18px; }
+    .intro h1 em { font-style: italic; color: var(--glow); text-shadow: 0 0 28px var(--glow-shadow); }
+    .intro .lede { font-size: 20px; margin: 0; }
+
+    /* ---------- Picker ---------- */
+    .picker { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 40px 0 28px; }
+    .family { display: grid; gap: 6px; align-content: start; }
+    .family-name { font: 600 11px/1.4 Cinzel, serif; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-faint); padding-left: 2px; }
+    .pick {
+      display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px;
+      border: 1px solid var(--line); border-radius: 3px; background: transparent; color: var(--ink-soft);
+      font: 500 16px/1.2 "EB Garamond", Garamond, serif; text-align: left; cursor: pointer;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .pick:hover { border-color: var(--bronze); color: var(--ink-bright); }
+    .pick[aria-pressed="true"] { border-color: var(--glow); color: var(--ink-bright); background: var(--glow-fill); }
+    .pick:focus-visible, .card button:focus-visible, .copy:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+    .chip { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); position: relative; overflow: hidden; }
+    .chip i { position: absolute; inset: 0; clip-path: inset(0 0 0 50%); }
+
+    /* ---------- Preview ---------- */
+    .current { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; margin-bottom: 16px; }
+    .current h2 { font-size: clamp(28px, 3.6vw, 38px); }
+    .current .meta { color: var(--ink-faint); font-size: 16px; }
+    .diagrams { display: grid; gap: 22px; }
+    .load { margin-top: 22px; display: grid; gap: 10px; }
+    .load-row { display: flex; gap: 10px; align-items: stretch; }
+    .load-row .code { flex: 1; min-width: 0; padding: 14px 18px; white-space: pre; }
+    .copy {
+      flex: none; padding: 0 16px; border: 1px solid var(--line); border-radius: 4px; background: transparent;
+      color: var(--ink-soft); font: 600 11px/1 Cinzel, serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer;
+    }
+    .copy:hover { border-color: var(--bronze); color: var(--glow); }
+    .load p { margin: 0; color: var(--ink-soft); font-size: 17px; }
+
+    /* ---------- Gallery ---------- */
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+    .card { display: grid; grid-template-rows: auto auto 1fr; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--panel); }
+    .card .sample { position: relative; height: 110px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; }
+    .sample .sample-title { font: 600 19px/1.1 "Cormorant Garamond", Garamond, serif; }
+    .sample .sample-text { font-size: 14px; }
+    .sample .roles { display: flex; gap: 6px; }
+    .sample .roles span { width: 24px; height: 24px; border-radius: 3px; border: 1.3px solid; }
+    .card-body { padding: 14px 16px 16px; display: grid; gap: 10px; align-content: start; }
+    .card-body h3 { font-size: 22px; font-weight: 600; }
+    .card-body .meta { color: var(--ink-faint); font-size: 15px; }
+    .card-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 16px; }
+    .card button {
+      padding: 6px 12px; border: 1px solid var(--bronze); border-radius: 2px; background: transparent; color: var(--ink-bright);
+      font: 600 10.5px/1 Cinzel, serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer;
+    }
+    .card button:hover { border-color: var(--glow); color: var(--glow); }
+
+    .families { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .families code { font-size: .85em; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
+
+    @media (max-width: 900px) {
+      .picker { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+      .split { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    }
+  </style>
+</head>
+<body data-own-themes>
+
+<svg class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <pattern id="meander" width="26" height="26" patternUnits="userSpaceOnUse">
+      <path d="M0 24.5H26 M0 1.5H26 M3 24.5V6H21V19H9V11H15" fill="none" stroke="currentColor" stroke-width="1.2" style="color: var(--bronze-deep)"/>
+    </pattern>
+  </defs>
+</svg>
+
+<header class="wrap nav">
+  <a class="brand" href="./" aria-label="Harpy home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 16 7.5 12 11.5 8 7.5Z M12 11.5V14 M7 14H17 M7 14V16 M17 14V16 M4.5 16H9.5V20H4.5Z M14.5 16H19.5V20H14.5Z"/></svg>
+    HARPY
+  </a>
+  <nav class="nav-links" aria-label="Main">
+    <a href="./#demo">Demo</a>
+    <a href="./#syntax">Syntax</a>
+    <a href="./#start">Get started</a>
+    <a href="themes.html" aria-current="page">Themes</a>
+    <a href="https://github.com/MikolajKubek/harpy">GitHub</a>
+    <button class="icon-btn" id="theme" type="button" aria-label="Switch the page between dark and light">
+      <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+      <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
+    </button>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap intro">
+    <p class="eyebrow">Themes</p>
+    <h1>Same diagrams, <em>your</em> colours.</h1>
+    <p class="lede">A theme recolours the surfaces, the text and Harpy's six responsibility colours. Pick one to see it on a flowchart and a sequence diagram, then load the build made for it.</p>
+  </div>
+
+  <section class="wrap" style="padding-top: 0" aria-labelledby="current-name">
+    <div class="picker" id="picker" role="group" aria-label="Theme"></div>
+
+    <div class="current">
+      <h2 id="current-name">Night</h2>
+      <span class="meta" id="current-meta"></span>
+    </div>
+
+    <div class="diagrams">
+      <harpy-diagram class="demo" id="flow" theme="night">
+        <script type="text/harpy">
+          # Checkout, end to end
+
+          ```harpy
+          flowchart LR
+          %% @step browse "In the browser"
+            subgraph FE [Storefront]
+              U([Customer]) --> C[Cart]
+            end
+          %% @step pay "Paying" focus=P
+            subgraph API [Order service]
+              C --> P{Payment OK?}
+              P -->|yes| O[Create order]
+              P -->|no| R[Show error]
+            end
+            R -.-> C
+          %% @step persist "Persisting"
+            O --> DB[(Orders DB)]
+          %% @step ship "Fulfilment"
+            subgraph WH [Warehouse]
+              K[Pick & pack] --> S[Ship]
+            end
+            O --> K
+          ```
+
+          ## browse
+          The customer adds items. Nothing leaves the **storefront** yet.
+
+          ## pay
+          The order service waits at most `5s` for the payment provider.
+
+          ## persist
+          Only a successful payment writes anything.
+
+          ## ship
+          The warehouse picks the order up from a queue.
+
+          ## summary
+          Three teams, three colours: the storefront owns the cart, the order service owns money and data,
+          and the warehouse owns everything physical.
+        </script>
+      </harpy-diagram>
+
+      <harpy-diagram class="demo" id="seq" theme="night">
+        <script type="text/harpy">
+          # Logging in
+
+          ```harpy
+          sequenceDiagram
+            box lapis Client
+              actor U as User
+              participant B as Browser
+            end
+            box verdigris Backend
+              participant A as API
+              participant D@{ "type": "database" } as Users DB
+            end
+            box porphyry Audit
+              participant L as Audit log
+            end
+          %% @step request "Credentials"
+            U->>B: submit the form
+            B->>+A: POST /login
+          %% @step check "Checking the password" focus=A,D
+            A->>D: find user by email
+            D-->>A: user + bcrypt hash
+            Note over A,D: The hash never leaves the backend
+          %% @step token "Answering"
+            A-)L: record the attempt
+            alt password matches
+              A-->>B: 200 + session cookie
+            else wrong password
+              A-->>-B: 401
+            end
+            B-->>U: show the result
+          ```
+
+          ## request
+          The browser posts the credentials to the API.
+
+          ## check
+          The API compares the password with the stored **bcrypt** hash.
+
+          ## token
+          Every attempt is logged; a match sets a session cookie, a mismatch returns `401`.
+
+          ## summary
+          The database never sees the plain password, and the browser never sees the hash.
+        </script>
+      </harpy-diagram>
+    </div>
+
+    <div class="load">
+      <div class="load-row">
+        <pre class="code"><code id="load-script"></code></pre>
+        <button class="copy" type="button" data-copy="load-script">Copy</button>
+      </div>
+      <p id="load-more"></p>
+    </div>
+  </section>
+
+  <section class="wrap" aria-labelledby="all-themes">
+    <div class="section-head">
+      <p class="eyebrow">Every theme</p>
+      <h2 id="all-themes">Ten palettes</h2>
+      <p class="lede">Each theme has a folder in <code>dist/themes/</code> with the script and its base64, ready to embed without any request.</p>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <section class="wrap" aria-labelledby="follow">
+    <div class="split">
+      <div>
+        <p class="eyebrow">Dark and light</p>
+        <h2 id="follow">Follow the reader's system</h2>
+        <p class="lede">A family pairs a dark and a light theme. Its build switches between them with the reader's system setting, the way Harpy's own night and parchment do.</p>
+        <ul class="families" id="families" style="margin-top: 22px"></ul>
+      </div>
+<pre class="code"><code><span class="c-dim">&lt;!-- A whole family, following the system --&gt;</span>
+<span class="c-kw">&lt;script</span> src=<span class="c-str">"…/dist/themes/nord/harpy.min.js"</span><span class="c-kw">&gt;&lt;/script&gt;</span>
+
+<span class="c-dim">&lt;!-- Or any build, with a theme per diagram --&gt;</span>
+<span class="c-kw">&lt;harpy-diagram</span> theme=<span class="c-str">"gruvbox-dark"</span><span class="c-kw">&gt;</span>…<span class="c-kw">&lt;/harpy-diagram&gt;</span>
+
+<span class="c-dim">&lt;!-- Or a default for the page --&gt;</span>
+<span class="c-kw">&lt;script&gt;</span> Harpy.configure({ theme: <span class="c-str">'solarized'</span> }) <span class="c-kw">&lt;/script&gt;</span></code></pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <svg class="meander" aria-hidden="true" focusable="false"><rect width="100%" height="26" fill="url(#meander)"/></svg>
+  <div class="wrap foot">
+    <span>Harpy · step-by-step diagrams</span>
+    <a href="https://github.com/MikolajKubek/harpy">Source on GitHub</a>
+    <span>MIT licensed · syntax from <a href="https://mermaid.js.org/">Mermaid</a>, layout by <a href="https://github.com/dagrejs/dagre">dagre</a></span>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script>
+  // Everything below is built from Harpy's own theme registry once harpy.min.js (deferred) has run.
+  document.addEventListener('DOMContentLoaded', () => {
+    const { THEMES, FAMILIES } = window.Harpy;
+    const CDN = 'https://cdn.jsdelivr.net/gh/MikolajKubek/harpy@main/dist/themes/';
+    const RAW = 'https://raw.githubusercontent.com/MikolajKubek/harpy/main/dist/themes/';
+    const LABELS = { harpy: 'Harpy', gruvbox: 'Gruvbox', solarized: 'Solarized', nord: 'Nord', jetbrains: 'JetBrains' };
+    const NAMES = { night: 'Night', parchment: 'Parchment', darcula: 'Darcula', 'intellij-light': 'IntelliJ Light' };
+    const familyOf = (t) => Object.keys(FAMILIES).find((f) => Object.values(FAMILIES[f]).includes(t));
+    const nameOf = (t) => NAMES[t] ?? `${LABELS[familyOf(t)]} ${THEMES[t].scheme}`;
+    // night and parchment are Harpy's own; their builds live in the dark and light folders.
+    const folderOf = (t) => ({ night: 'dark', parchment: 'light' })[t] ?? t;
+    const el = (tag, props = {}, children = []) => {
+      const e = Object.assign(document.createElement(tag), props);
+      e.append(...children);
+      return e;
+    };
+
+    const diagrams = [...document.querySelectorAll('.diagrams harpy-diagram')];
+    const picks = new Map();
+
+    // Picker: one column per family, dark then light.
+    const picker = document.getElementById('picker');
+    for (const [family, pair] of Object.entries(FAMILIES)) {
+      const col = el('div', { className: 'family' }, [el('span', { className: 'family-name', textContent: LABELS[family] })]);
+      for (const t of [pair.dark, pair.light]) {
+        const { base, roles } = THEMES[t];
+        const chip = el('span', { className: 'chip' }, [el('i')]);
+        chip.style.background = base.stage;
+        chip.firstChild.style.background = roles.bronze[1];
+        const b = el('button', { type: 'button', className: 'pick' }, [chip, document.createTextNode(THEMES[t].scheme === 'dark' ? 'Dark' : 'Light')]);
+        b.setAttribute('aria-label', nameOf(t));
+        b.addEventListener('click', () => select(t, { scroll: false }));
+        picks.set(t, b);
+        col.append(b);
+      }
+      picker.append(col);
+    }
+
+    // Gallery: a small sample in each theme's own colours.
+    const gallery = document.getElementById('gallery');
+    for (const t of Object.keys(THEMES)) {
+      const { base, roles, scheme } = THEMES[t];
+      const sample = el('div', { className: 'sample' }, [
+        el('div', {}, [el('div', { className: 'sample-title', textContent: 'Step II' }), el('div', { className: 'sample-text', textContent: 'The order service answers.' })]),
+        el('div', { className: 'roles' }, Object.values(roles).map(([c]) => {
+          const s = el('span');
+          s.style.borderColor = c;
+          s.style.background = `color-mix(in srgb, ${c} 14%, ${base.stage})`;
+          s.title = c;
+          return s;
+        })),
+      ]);
+      sample.style.background = base.stage;
+      sample.style.color = base.ink;
+      sample.querySelector('.sample-title').style.color = base['ink-bright'];
+      sample.querySelector('.sample-text').style.color = base['ink-soft'];
+      const preview = el('button', { type: 'button', textContent: 'Preview' });
+      preview.addEventListener('click', () => select(t, { scroll: true }));
+      gallery.append(el('article', { className: 'card' }, [
+        sample,
+        el('div', { className: 'card-body' }, [
+          el('h3', { textContent: nameOf(t) }),
+          el('span', { className: 'meta', innerHTML: `${scheme} · <code>dist/themes/${folderOf(t)}/</code>` }),
+          el('div', { className: 'card-actions' }, [
+            preview,
+            el('a', { href: `${CDN}${folderOf(t)}/harpy.min.js`, textContent: 'Script' }),
+            el('a', { href: `${RAW}${folderOf(t)}/harpy.min.js.b64`, textContent: 'Base64' }),
+          ]),
+        ]),
+      ]));
+    }
+
+    // Families that follow the system.
+    document.getElementById('families').append(...Object.entries(FAMILIES).map(([f, { dark, light }]) =>
+      el('li', { innerHTML: `<code>${f === 'harpy' ? 'dist/harpy.min.js' : `dist/themes/${f}/`}</code> · ${nameOf(dark)} and ${nameOf(light)}` })));
+
+    function select(t, { scroll }) {
+      if (!THEMES[t]) t = 'night';
+      for (const [name, b] of picks) b.setAttribute('aria-pressed', String(name === t));
+      for (const d of diagrams) d.setAttribute('theme', t);
+      document.getElementById('current-name').textContent = nameOf(t);
+      document.getElementById('current-meta').textContent = `${THEMES[t].scheme} · theme="${t}"`;
+      document.getElementById('load-script').textContent = `<script src="${CDN}${folderOf(t)}/harpy.min.js"></` + 'script>';
+      document.getElementById('load-more').innerHTML =
+        `Or embed it with no request at all: <a href="${RAW}${folderOf(t)}/harpy.min.js.b64">harpy.min.js.b64</a> goes in <code>&lt;script src="data:text/javascript;base64,…"&gt;</code>.`;
+      history.replaceState(null, '', `#${t}`);
+      if (scroll) document.getElementById('picker').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.querySelectorAll('.copy').forEach((b) => b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent);
+        b.textContent = 'Copied';
+      } catch { b.textContent = 'Select it'; }
+      setTimeout(() => (b.textContent = 'Copy'), 1600);
+    }));
+
+    select(decodeURIComponent(location.hash.slice(1)) || 'night', { scroll: false });
+
+    // Open each preview on its summary, so the whole palette shows at once.
+    for (const d of diagrams) {
+      const toSummary = () => (d.steps.length ? d.goTo(d.steps.length - 1) : requestAnimationFrame(toSummary));
+      toSummary();
+    }
+  });
+</script>
+</body>
+</html>

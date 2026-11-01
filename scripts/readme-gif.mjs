@@ -4,35 +4,24 @@
 //   node scripts/readme-gif.mjs
 //   CHROMIUM_PATH=/path/to/chrome THEME=light node scripts/readme-gif.mjs
 
-import { createServer } from 'node:http';
-import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import { extname, join, normalize } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { serve } from './serve.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const out = join(root, 'docs/assets/demo.gif');
 const theme = process.env.THEME || 'dark';
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.md': 'text/markdown' };
-
-const server = createServer(async (req, res) => {
-  const path = normalize(join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname)));
-  if (!path.startsWith(root)) return res.writeHead(403).end();
-  try {
-    res.writeHead(200, { 'content-type': types[extname(path)] ?? 'application/octet-stream' }).end(await readFile(path));
-  } catch {
-    res.writeHead(404).end();
-  }
-});
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
+const server = await serve(root);
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const dir = await mkdtemp(join(tmpdir(), 'harpy-gif-'));
 try {
   const page = await browser.newPage({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
-  await page.goto(`http://127.0.0.1:${server.address().port}/examples/index.html`);
+  await page.goto(`${server.url}/examples/index.html`);
   await page.waitForFunction(() => document.querySelector('#checkout')?.shadowRoot?.querySelector('.svg-host svg'));
   const el = page.locator('#checkout');
   await el.evaluate((d, t) => d.setAttribute('theme', t), theme);

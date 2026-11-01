@@ -19,96 +19,8 @@
   </script>
   <!-- Copied in by `npm run build`, so docs/ deploys as-is from the branch. -->
   <script src="harpy.min.js" defer></script>
+  <link rel="stylesheet" href="site.css">
   <style>
-    /* ---------- Tokens: night (default) and parchment ---------- */
-    :root {
-      --bg: #0f0a17;
-      --bg-raised: #150f1e;
-      --panel: #130d1c;
-      --line: #2a2030;
-      --ink: #ecd9c0;
-      --ink-bright: #fbeedd;
-      --ink-soft: #b7a291;
-      --ink-faint: #7c6a62;
-      --bronze: #b58a6c;
-      --bronze-deep: #6f5040;
-      --glow: #ffb877;
-      --glow-fill: rgba(255, 184, 119, .09);
-      --glow-shadow: rgba(255, 170, 90, .55);
-      --node-fill: rgba(181, 138, 108, .05);
-      --code-bg: #120c1a;
-      --c-step: #ffb877;
-      --c-kw: #d6a77f;
-      --c-str: #c9b49b;
-      --c-md: #ecd9c0;
-      --c-dim: #7c6a62;
-      color-scheme: dark;
-    }
-    @media (prefers-color-scheme: light) {
-      :root:not([data-theme="dark"]) {
-        --bg: #f4ecdf; --bg-raised: #efe5d4; --panel: #fbf6ec; --line: #dccbb2;
-        --ink: #2b1f1a; --ink-bright: #1a120e; --ink-soft: #5d4a3e; --ink-faint: #8c7768;
-        --bronze: #8f5f43; --bronze-deep: #c4a68e; --glow: #b9560c;
-        --glow-fill: rgba(214, 120, 30, .08); --glow-shadow: rgba(214, 120, 30, .35);
-        --node-fill: rgba(143, 95, 67, .04); --code-bg: #f0e6d5;
-        --c-step: #b9560c; --c-kw: #8f5f43; --c-str: #6b5444; --c-md: #2b1f1a; --c-dim: #9a8574;
-        color-scheme: light;
-      }
-    }
-    :root[data-theme="light"] {
-      --bg: #f4ecdf; --bg-raised: #efe5d4; --panel: #fbf6ec; --line: #dccbb2;
-      --ink: #2b1f1a; --ink-bright: #1a120e; --ink-soft: #5d4a3e; --ink-faint: #8c7768;
-      --bronze: #8f5f43; --bronze-deep: #c4a68e; --glow: #b9560c;
-      --glow-fill: rgba(214, 120, 30, .08); --glow-shadow: rgba(214, 120, 30, .35);
-      --node-fill: rgba(143, 95, 67, .04); --code-bg: #f0e6d5;
-      --c-step: #b9560c; --c-kw: #8f5f43; --c-str: #6b5444; --c-md: #2b1f1a; --c-dim: #9a8574;
-      color-scheme: light;
-    }
-
-    /* ---------- Base ---------- */
-    *, *::before, *::after { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font: 400 19px/1.6 "EB Garamond", Garamond, Georgia, serif;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
-    a { color: var(--glow); text-underline-offset: 3px; }
-    code { font: 500 .8em/1.5 "JetBrains Mono", ui-monospace, monospace; color: var(--c-kw); font-variant-ligatures: none; }
-    .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
-    .eyebrow {
-      margin: 0 0 14px;
-      font: 600 12px/1.4 Cinzel, serif; letter-spacing: .22em; text-transform: uppercase;
-      color: var(--bronze);
-    }
-    h1, h2, h3 { font-family: "Cormorant Garamond", Garamond, serif; font-weight: 500; color: var(--ink-bright); margin: 0; }
-    h2 { font-size: clamp(32px, 4.4vw, 46px); line-height: 1.1; }
-    .lede { color: var(--ink-soft); max-width: 58ch; }
-
-    /* ---------- Nav ---------- */
-    .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0; }
-    .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-bright); text-decoration: none; font: 600 18px/1 Cinzel, serif; letter-spacing: .16em; }
-    .brand svg { width: 26px; height: 26px; color: var(--glow); filter: drop-shadow(0 0 4px var(--glow-shadow)); }
-    .nav-links { display: flex; align-items: center; gap: 26px; }
-    .nav-links a:not(.icon-btn) { color: var(--ink-soft); text-decoration: none; font: 500 12px/1 Cinzel, serif; letter-spacing: .16em; text-transform: uppercase; }
-    .nav-links a:not(.icon-btn):hover { color: var(--ink-bright); }
-    .icon-btn {
-      display: inline-grid; place-items: center; width: 38px; height: 38px; padding: 0;
-      border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--ink-soft); cursor: pointer;
-    }
-    .icon-btn:hover { color: var(--glow); border-color: var(--bronze); }
-    .icon-btn svg { width: 17px; height: 17px; }
-    .theme-sun { display: none; }
-    :root[data-theme="light"] .theme-sun { display: block; }
-    :root[data-theme="light"] .theme-moon { display: none; }
-    @media (prefers-color-scheme: light) {
-      :root:not([data-theme="dark"]) .theme-sun { display: block; }
-      :root:not([data-theme="dark"]) .theme-moon { display: none; }
-    }
-
     /* ---------- Hero ---------- */
     .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 56px; align-items: center; padding: 48px 0 72px; }
     .hero h1 { font-size: clamp(44px, 6.6vw, 76px); line-height: 1.02; letter-spacing: -.01em; margin-bottom: 22px; }
@@ -132,33 +44,8 @@
     .medallion img { display: block; width: 100%; height: auto; }
     .medallion-glow { position: absolute; inset: -20%; background: radial-gradient(circle at 70% 42%, rgba(255, 184, 119, .16), transparent 45%); pointer-events: none; z-index: -1; }
 
-    /* ---------- Meander band ---------- */
-    .meander { display: block; width: 100%; height: 26px; color: var(--bronze-deep); }
-    .defs { position: absolute; width: 0; height: 0; }
-
-
-    /* ---------- Sections ---------- */
-    section { padding: 96px 0 0; }
-    .section-head { max-width: 640px; margin-bottom: 40px; }
-    .section-head .lede { margin: 16px 0 0; }
-
-    /* ---------- Live demos ---------- */
-    harpy-diagram.demo { display: block; }
-    harpy-diagram:not(:defined) { display: block; min-height: 420px; border: 1px solid var(--line); border-radius: 4px; }
-
     /* ---------- Syntax section ---------- */
     .syntax { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 48px; align-items: start; }
-    .code {
-      margin: 0; padding: 22px 24px; overflow-x: auto;
-      background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px;
-      font: 400 13.5px/1.75 "JetBrains Mono", ui-monospace, monospace; color: var(--c-str); tab-size: 2;
-      font-variant-ligatures: none;
-    }
-    .code code { font: inherit; color: inherit; }
-    .c-step { color: var(--c-step); }
-    .c-kw { color: var(--c-kw); }
-    .c-md { color: var(--c-md); font-weight: 500; }
-    .c-dim { color: var(--c-dim); }
     .points { list-style: none; margin: 0; padding: 0; display: grid; gap: 30px; }
     .points li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 12px; }
     .numeral { grid-row: span 2; font: 600 15px/1.9 Cinzel, serif; color: var(--glow); letter-spacing: .08em; }
@@ -180,11 +67,6 @@
       background: var(--glow-fill); color: var(--ink-soft); font-size: 17px;
     }
 
-    /* ---------- Footer ---------- */
-    footer { padding: 110px 0 40px; }
-    .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-top: 22px; color: var(--ink-faint); font-size: 16px; }
-    .foot a { color: var(--ink-soft); }
-
     /* ---------- Responsive ---------- */
     @media (max-width: 900px) {
       .hero, .syntax, .start { grid-template-columns: minmax(0, 1fr); gap: 40px; }
@@ -193,24 +75,10 @@
       .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .feature:nth-child(3) { border-left: 0; }
       .feature:nth-child(n + 3) { border-top: 1px solid var(--line); }
-      .seq { grid-template-columns: minmax(0, 1fr); }
-      .seq .stage { order: 1; border-left: 0; }
-      .seq .narration { order: 2; border-top: 1px solid var(--line); }
     }
     @media (max-width: 640px) {
-      body { font-size: 18px; }
-      .nav-links a:not(.icon-btn) { display: none; }
-      section { padding-top: 72px; }
-      .stage { padding: 24px 16px 18px; justify-content: flex-start; }
-      .narration { grid-template-columns: minmax(0, 1fr); padding: 20px 18px 22px; }
-      .controls { justify-content: space-between; }
       .features { grid-template-columns: minmax(0, 1fr); }
       .feature + .feature { border-left: 0; border-top: 1px solid var(--line); }
-      .steps { min-height: 150px; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
     }
   </style>
 </head>
@@ -234,6 +102,7 @@
     <a href="#demo">Demo</a>
     <a href="#syntax">Syntax</a>
     <a href="#start">Get started</a>
+    <a href="themes.html">Themes</a>
     <a href="https://github.com/MikolajKubek/harpy">GitHub</a>
     <button class="icon-btn" id="theme" type="button" aria-label="Switch colour theme">
       <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
@@ -413,7 +282,7 @@ Three teams, three colours…</code></pre>
       <div class="feature">
         <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M10 6 4 14l6 8M18 6l6 8-6 8"/></svg>
         <h3>One script tag</h3>
-        <p>No build step. Import the module and write a <code>&lt;harpy-diagram&gt;</code>.</p>
+        <p>No build step. Add the script and write a <code>&lt;harpy-diagram&gt;</code>.</p>
       </div>
       <div class="feature">
         <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="3.5" y="5.5" width="9" height="17" rx="1"/><rect x="15.5" y="5.5" width="9" height="17" rx="1"/><path d="M6 10h4M6 13h3M6 16h4"/></svg>
@@ -439,11 +308,11 @@ Three teams, three colours…</code></pre>
       <div>
         <p class="eyebrow">Get started</p>
         <h2>Drop it into any page</h2>
-        <p class="lede" style="margin-top: 16px">Add the script, then put your document in a <code>&lt;harpy-diagram&gt;</code>. Use <code>mode="split"</code> to show the editor next to the diagram.</p>
+        <p class="lede" style="margin-top: 16px">Add the script, then put your document in a <code>&lt;harpy-diagram&gt;</code>. Use <code>mode="split"</code> to show the editor next to the diagram, and pick a look on the <a href="themes.html">themes page</a>.</p>
         <p class="note">Harpy is in early development. It draws flowcharts and sequence diagrams with its own renderer; more diagram types will follow.</p>
       </div>
 <pre class="code"><code><span class="c-dim">&lt;!-- Load Harpy once per page --&gt;</span>
-<span class="c-kw">&lt;script</span> type=<span class="c-str">"module"</span> src=<span class="c-str">"harpy/src/harpy.js"</span><span class="c-kw">&gt;&lt;/script&gt;</span>
+<span class="c-kw">&lt;script</span> src=<span class="c-str">"https://cdn.jsdelivr.net/gh/MikolajKubek/harpy@main/dist/harpy.min.js"</span><span class="c-kw">&gt;&lt;/script&gt;</span>
 
 <span class="c-kw">&lt;harpy-diagram</span> mode=<span class="c-str">"preview"</span><span class="c-kw">&gt;</span>
   <span class="c-kw">&lt;script</span> type=<span class="c-str">"text/harpy"</span><span class="c-kw">&gt;</span>
@@ -472,23 +341,6 @@ Three teams, three colours…</code></pre>
   </div>
 </footer>
 
-<script>
-  // Theme toggle: flips relative to whatever is currently showing.
-  document.getElementById('theme').addEventListener('click', () => {
-    const root = document.documentElement;
-    const current = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    const next = current === 'light' ? 'dark' : 'light';
-    root.dataset.theme = next;
-    syncDiagramTheme();
-    try { localStorage.setItem('harpy-theme', next); } catch {}
-  });
-  // Diagrams follow the page theme when it has been chosen explicitly.
-  function syncDiagramTheme() {
-    const theme = document.documentElement.dataset.theme;
-    document.querySelectorAll('harpy-diagram').forEach((d) => (theme ? d.setAttribute('theme', theme) : d.removeAttribute('theme')));
-  }
-  syncDiagramTheme();
-
-</script>
+<script src="site.js"></script>
 </body>
 </html>

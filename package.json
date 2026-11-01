@@ -2,6 +2,20 @@
   "name": "harpy",
   "version": "0.1.0",
   "description": "Mermaid-inspired diagrams you can step through, with a Markdown description for each step",
+  "keywords": [
+    "mermaid",
+    "diagrams",
+    "flowchart",
+    "sequence-diagram",
+    "web-component",
+    "presentation"
+  ],
+  "homepage": "https://mikolajkubek.github.io/harpy/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MikolajKubek/harpy.git"
+  },
+  "bugs": "https://github.com/MikolajKubek/harpy/issues",
   "type": "module",
   "main": "src/harpy.js",
   "scripts": {
