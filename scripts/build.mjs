@@ -4,6 +4,7 @@
 //   harpy.min.js.b64     the classic script in base64, for <script src="data:text/javascript;base64,...">
 //   embed-example.html   a page that embeds the base64 build and renders without fetching any code
 //   themes/<name>/       harpy.min.js and harpy.min.js.b64 with a different default theme
+// and copies harpy.min.js into docs/ for the homepage.
 
 import { build } from 'esbuild';
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
@@ -51,6 +52,8 @@ await build({ ...common, format: 'iife', globalName: 'Harpy', outfile: 'dist/har
 await build({ ...common, format: 'esm', outfile: 'dist/harpy.esm.min.js' });
 
 const script = await readFile('dist/harpy.min.js');
+// The homepage uses the bundle, so docs/ is self-contained and Pages can serve it from the branch.
+await writeFile('docs/harpy.min.js', script);
 const b64 = script.toString('base64');
 await writeFile('dist/harpy.min.js.b64', b64);
 

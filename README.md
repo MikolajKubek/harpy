@@ -175,16 +175,16 @@ configure({ dagreUrl: '/vendor/dagre.esm.js', fonts: '/fonts.css', markedUrl: '.
 
 ## Website
 
-`docs/index.html` is the project homepage, using the live component. `docs/src` is a symlink to
-`src/` for local development. `.github/workflows/pages.yml` copies the library in and publishes `docs/`;
-enable it under Settings → Pages → Source: GitHub Actions.
+`docs/index.html` is the project homepage. It loads `docs/harpy.min.js`, which `npm run build` copies
+in, so `docs/` is self-contained: GitHub Pages serves it with Settings → Pages → Deploy from a branch →
+`main` / `/docs`. Rebuild before committing changes to `src/` so the homepage picks them up.
 
 ## Development
 
 ```sh
 npm install
 npm test            # parser and layout unit tests (node:test)
-npm run build       # self-contained bundles in dist/
+npm run build       # self-contained bundles in dist/, plus docs/harpy.min.js
 npm run test:e2e    # drives examples/index.html in Chromium; needs network for the CDNs
 ```
 
