@@ -6,9 +6,13 @@
   "main": "src/harpy.js",
   "scripts": {
     "test": "node --test test/*.test.js",
-    "test:e2e": "node test/e2e/smoke.mjs"
+    "test:e2e": "node test/e2e/smoke.mjs",
+    "build": "node scripts/build.mjs"
   },
   "devDependencies": {
+    "dompurify": "^3.4.17",
+    "esbuild": "^0.28.2",
+    "marked": "^18.1.1",
     "playwright": "1.61.1"
   },
   "license": "MIT",

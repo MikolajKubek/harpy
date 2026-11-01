@@ -47,7 +47,7 @@ const NAMED_SHAPES = {
   odd: 'asymmetric', asymmetric: 'asymmetric', doc: 'document', document: 'document',
 };
 
-const ID_CHAR = /[A-Za-z0-9_À-￿]/;
+const ID_CHAR = /[\p{L}\p{N}_]/u;
 
 class Scanner {
   constructor(text, line) {

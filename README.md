@@ -43,6 +43,26 @@ dagre (flowchart layout), the web fonts, marked and DOMPurify load from CDNs the
 diagram renders. Open `examples/index.html` through a local web server to try it
 (`python3 -m http.server`, then `/examples/`). Module scripts don't load over `file://`.
 
+### Prebuilt bundles
+
+`dist/` contains self-contained builds with dagre, marked and DOMPurify included, so no code is fetched
+at runtime (only the optional web fonts):
+
+| File | Use |
+| --- | --- |
+| `dist/harpy.min.js` | Classic script: `<script src="…/harpy.min.js"></script>`. Also works from `file://`. Exposes `window.Harpy`. |
+| `dist/harpy.esm.min.js` | ES module: `import { configure } from '…/harpy.esm.min.js'` |
+| `dist/harpy.min.js.b64` | The classic script in base64, to embed without any request: `<script src="data:text/javascript;base64,…"></script>` |
+| `dist/embed-example.html` | A page that embeds the base64 build; open it straight from disk |
+
+Straight from the repository via jsDelivr:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/MikolajKubek/harpy@main/dist/harpy.min.js"></script>
+```
+
+Rebuild with `npm run build` after changing `src/`.
+
 ## Document format
 
 - **Diagram**: a fenced ` ```harpy ` or ` ```mermaid ` block. A document without a fence is treated as a bare diagram.
@@ -83,7 +103,8 @@ Colours mark responsibilities. The palette is `bronze` (neutral), `verdigris`, `
   `box`, all arrow types, `+`/`-` activation and `activate`/`deactivate`, notes, `loop`, `alt`/`else`,
   `opt`, `par`/`and`, `critical`/`option`, `break`, `rect`, `autonumber`.
 
-Syntax errors are reported with the line number. Other Mermaid diagram types are not supported yet.
+Syntax errors are reported with the line number. Other Mermaid diagram types are not supported yet;
+see [TODO.md](TODO.md) for what's planned.
 
 ## Element
 
@@ -130,6 +151,7 @@ enable it under Settings → Pages → Source: GitHub Actions.
 ```sh
 npm install
 npm test            # parser and layout unit tests (node:test)
+npm run build       # self-contained bundles in dist/
 npm run test:e2e    # drives examples/index.html in Chromium; needs network for the CDNs
 ```
 

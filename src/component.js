@@ -327,6 +327,11 @@ export class HarpyDiagram extends HTMLElement {
   }
 
   _loadSource() {
+    // With a classic (non-deferred) script the element connects before its children are parsed.
+    if (document.readyState === 'loading' && !this.hasAttribute('src')) {
+      document.addEventListener('DOMContentLoaded', () => this._source === null && this._loadSource(), { once: true });
+      return;
+    }
     const src = this.getAttribute('src');
     const token = ++this._srcToken;
     if (src) {
