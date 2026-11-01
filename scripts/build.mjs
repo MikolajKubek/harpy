@@ -3,9 +3,11 @@
 //   harpy.esm.min.js     ES module:      import { configure } from './harpy.esm.min.js'
 //   harpy.min.js.b64     the classic script in base64, for <script src="data:text/javascript;base64,...">
 //   embed-example.html   a page that embeds the base64 build and renders without fetching any code
+//   themes/<name>/       harpy.min.js and harpy.min.js.b64 with a different default theme
 
 import { build } from 'esbuild';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { THEMES, FAMILIES } from '../src/themes.js';
 
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
 const banner = `/*! Harpy ${pkg.version} | MIT License | (c) Mikołaj Kubik | step-by-step diagrams in Mermaid syntax | https://github.com/MikolajKubek/harpy
@@ -52,6 +54,32 @@ const script = await readFile('dist/harpy.min.js');
 const b64 = script.toString('base64');
 await writeFile('dist/harpy.min.js.b64', b64);
 
+// The same classic build with another default theme, one folder each, so the URL picks the look.
+// dark/light are Harpy's night/parchment; families follow the system, the rest are fixed.
+const variants = [
+  'dark', 'light',
+  ...Object.keys(FAMILIES).filter((f) => f !== 'harpy'),
+  ...Object.keys(THEMES).filter((t) => !Object.values(FAMILIES.harpy).includes(t)),
+];
+await rm('dist/themes', { recursive: true, force: true });
+for (const theme of variants) {
+  const outfile = `dist/themes/${theme}/harpy.min.js`;
+  await build({
+    ...common,
+    entryPoints: undefined,
+    stdin: {
+      contents: `import { configure } from './src/bundle.js';\nexport * from './src/bundle.js';\nconfigure({ theme: ${JSON.stringify(theme)} });`,
+      resolveDir: '.',
+      sourcefile: `harpy-${theme}.js`,
+    },
+    banner: { js: banner.replace(' | MIT License', ` | theme: ${theme} | MIT License`) },
+    format: 'iife',
+    globalName: 'Harpy',
+    outfile,
+  });
+  await writeFile(`${outfile}.b64`, (await readFile(outfile)).toString('base64'));
+}
+
 const example = `<!doctype html>
 <html lang="en">
 <head>
@@ -96,3 +124,4 @@ console.log(`dist/harpy.min.js       ${kb(script.length)}`);
 console.log(`dist/harpy.esm.min.js   ${kb(esm.length)}`);
 console.log(`dist/harpy.min.js.b64   ${kb(b64.length)}`);
 console.log(`dist/embed-example.html ${kb(example.length)}`);
+console.log(`dist/themes/           ${variants.length} themes: ${variants.join(', ')}`);

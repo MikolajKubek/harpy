@@ -59,12 +59,36 @@ at runtime (only the optional web fonts):
 | `dist/harpy.min.js.b64` | The classic script in base64, to embed without any request: `<script src="data:text/javascript;base64,…"></script>` |
 | `dist/embed-example.html` | A page that embeds the base64 build; open it straight from disk |
 | `dist/THIRD_PARTY_LICENSES.txt` | Licenses of the libraries bundled in |
+| `dist/themes/<theme>/` | The classic script and its base64, with another default theme (see below) |
 
 Straight from the repository via jsDelivr:
 
 ```html
 <script src="https://cdn.jsdelivr.net/gh/MikolajKubek/harpy@main/dist/harpy.min.js"></script>
 ```
+
+#### Themed builds
+
+`dist/themes/<theme>/` holds `harpy.min.js` and `harpy.min.js.b64` with a different default theme, so
+the path picks the look:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/MikolajKubek/harpy@main/dist/themes/gruvbox/harpy.min.js"></script>
+```
+
+| Folder | Look |
+| --- | --- |
+| `dark`, `light` | Harpy's night and parchment |
+| `gruvbox`, `solarized`, `nord`, `jetbrains` | The family's dark or light variant, following the system |
+| `gruvbox-dark`, `gruvbox-light` | Gruvbox |
+| `solarized-dark`, `solarized-light` | Solarized |
+| `nord-dark`, `nord-light` | Nord |
+| `darcula`, `intellij-light` | JetBrains Darcula and IntelliJ Light |
+
+The root `dist/harpy.min.js` uses Harpy's own pair (night / parchment, following the system). A
+`theme` attribute on an element still overrides the default. Raw GitHub URLs work for the `.b64`
+files (`https://raw.githubusercontent.com/MikolajKubek/harpy/main/dist/themes/nord/harpy.min.js.b64`),
+but GitHub serves `.js` there as plain text, so load scripts through jsDelivr.
 
 Rebuild with `npm run build` after changing `src/`.
 
@@ -117,7 +141,7 @@ see [TODO.md](TODO.md) for what's planned.
 | --- | --- |
 | `mode` | `preview` (default) or `split`: source editor side by side with live preview |
 | `src` | Load the document from a URL instead of the inline `<script type="text/harpy">` |
-| `theme` | `auto` (default, follows the system), `light` (parchment), `dark` (night) |
+| `theme` | `auto` (default), `dark`, `light`, a family (`harpy`, `gruvbox`, `solarized`, `nord`, `jetbrains`) or a theme (`night`, `parchment`, `gruvbox-dark`, `darcula`...) |
 | `no-dim` | Don't fade earlier steps |
 
 JavaScript: `el.source`, `el.mode`, `el.step`, `el.steps`, `el.next()`, `el.prev()`, `el.goTo(indexOrId)`.
@@ -125,6 +149,10 @@ Events: `harpy-step` (`{ index, id, summary }`) and `harpy-change` (`{ source }`
 Keyboard: `←` `→` `Home` `End` while the diagram has focus. The play button steps through automatically.
 
 CSS custom properties: `--harpy-accent`, `--harpy-max-height`, `--harpy-dim-opacity`.
+
+Themes are colour palettes; `dark` and `light` pick the variant of the default family, and `auto`
+and family names follow the system preference. Set the default for the whole page with
+`configure({ theme: 'nord' })`, or with a themed build.
 
 To self-host the dependencies:
 

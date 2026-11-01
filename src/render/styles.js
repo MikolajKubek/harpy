@@ -1,59 +1,10 @@
 // Visual style of Harpy diagrams. Colours come from --hp-* tokens defined by the host
-// (see THEME_TOKENS); each unit carries a role class (r-lapis...) that sets --r (base colour)
+// (see ../themes.js); each unit carries a role class (r-lapis...) that sets --r (base colour)
 // and --rb (bright colour, used while the unit is the current step).
 
-const ROLE_TOKENS = {
-  night: {
-    bronze: ['#b58a6c', '#ffb877'],
-    verdigris: ['#6fae9c', '#9fe6d0'],
-    lapis: ['#8199d4', '#b7c8ff'],
-    terracotta: ['#cf7a5c', '#ffad8c'],
-    porphyry: ['#bd86b1', '#f2b8e6'],
-    laurel: ['#a2ac65', '#d8e494'],
-  },
-  parchment: {
-    bronze: ['#8f5f43', '#b9560c'],
-    verdigris: ['#2e7565', '#14876d'],
-    lapis: ['#3d5a9e', '#2550c8'],
-    terracotta: ['#a3452a', '#c93f15'],
-    porphyry: ['#874578', '#a6318f'],
-    laurel: ['#5d6a26', '#617f08'],
-  },
-};
+import { ROLES } from '../themes.js';
 
-const BASE = {
-  night: {
-    bg: '#0f0a17', stage: '#130d1c', surface: '#171021', line: '#2a2030', ink: '#ecd9c0', 'ink-bright': '#fff3e3',
-    'ink-soft': '#b7a291', 'ink-faint': '#7c6a62', frame: '#5e4538', note: '#1c1525', glow: '#ffb877', code: '#120c1a',
-    error: '#ff9a8a', 'error-bg': '#2a1418',
-  },
-  parchment: {
-    bg: '#f4ecdf', stage: '#fbf6ec', surface: '#efe5d4', line: '#dccbb2', ink: '#2b1f1a', 'ink-bright': '#140d0a',
-    'ink-soft': '#5d4a3e', 'ink-faint': '#8c7768', frame: '#c0a38a', note: '#f3eadb', glow: '#b9560c', code: '#f0e6d5',
-    error: '#b42318', 'error-bg': '#fdeceb',
-  },
-};
-
-function declarations(theme) {
-  const lines = Object.entries(BASE[theme]).map(([k, v]) => `--hp-${k}: ${v};`);
-  for (const [role, [base, bright]] of Object.entries(ROLE_TOKENS[theme])) lines.push(`--hp-${role}: ${base};`, `--hp-${role}-bright: ${bright};`);
-  lines.push(`color-scheme: ${theme === 'night' ? 'dark' : 'light'};`);
-  return lines.join(' ');
-}
-
-/**
- * Theme tokens for a selector. Night is the default; parchment applies for a light system
- * preference or when `lightSelector` matches, night again when `darkSelector` matches.
- */
-export function themeTokens(selector, { lightSelector, darkSelector }) {
-  return `
-${selector} { ${declarations('night')} }
-@media (prefers-color-scheme: light) { ${selector}:not(${darkSelector}) { ${declarations('parchment')} } }
-${lightSelector} { ${declarations('parchment')} }
-${darkSelector} { ${declarations('night')} }`;
-}
-
-const roleRules = Object.keys(ROLE_TOKENS.night).map((r) => `.r-${r} { --r: var(--hp-${r}); --rb: var(--hp-${r}-bright); }`).join('\n');
+const roleRules = ROLES.map((r) => `.r-${r} { --r: var(--hp-${r}); --rb: var(--hp-${r}-bright); }`).join('\n');
 
 export const DIAGRAM_CSS = `
 .hd { display: block; overflow: visible; --r: var(--hp-bronze); --rb: var(--hp-bronze-bright); }

@@ -4,7 +4,8 @@
 //     <script type="text/harpy"> ...document... </script>
 //   </harpy-diagram>
 //
-// Other attributes: src (load the document from a URL), theme (auto | light | dark),
+// Other attributes: src (load the document from a URL), theme (auto | dark | light | a theme or
+// family name from themes.js),
 // no-dim (don't fade earlier steps).
 // Events: harpy-step {index, id, summary}, harpy-change {source}.
 
@@ -14,7 +15,8 @@ import { createMeasurer } from './layout/text.js';
 import { layoutFlowchart } from './layout/flowchart.js';
 import { layoutSequence } from './layout/sequence.js';
 import { renderDiagram } from './render/svg.js';
-import { DIAGRAM_CSS, themeTokens } from './render/styles.js';
+import { DIAGRAM_CSS } from './render/styles.js';
+import { resolveTheme, themeCSS } from './themes.js';
 import { Player } from './player.js';
 import { renderMarkdownAll } from './markdown.js';
 import { loadDagre, loadFonts } from './deps.js';
@@ -25,8 +27,15 @@ const roman = (n) => ROMAN[n - 1] ?? String(n);
 const MIN_DIAGRAM_SCALE = 0.8;
 const AUTOPLAY_MS = 3600;
 
+// The theme used when an element has no theme attribute (or `auto`); set with configure({ theme }).
+let defaultTheme = 'harpy';
+const live = new Set();
+export function setDefaultTheme(theme) {
+  defaultTheme = theme;
+  for (const el of live) el._syncTheme();
+}
+
 const STYLES = /* css */ `
-${themeTokens(':host', { lightSelector: ':host([theme="light"])', darkSelector: ':host([theme="dark"])' })}
 :host {
   --hp-accent: var(--harpy-accent, var(--hp-glow));
   display: block;
@@ -186,6 +195,9 @@ export class HarpyDiagram extends HTMLElement {
     }
     const root = this.attachShadow({ mode: 'open' });
     root.append(template.content.cloneNode(true));
+    this._themeStyle = document.createElement('style');
+    root.prepend(this._themeStyle);
+    this._syncTheme();
     const $ = (s) => root.querySelector(s);
     this._el = {
       frame: $('.frame'), heading: $('.heading'), title: $('.title'), intro: $('.intro'), modes: $('.modes'),
@@ -231,18 +243,26 @@ export class HarpyDiagram extends HTMLElement {
   }
 
   connectedCallback() {
+    live.add(this);
     if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
     this._syncMode();
     if (this._source === null) this._loadSource();
   }
 
   disconnectedCallback() {
+    live.delete(this);
     this._stopAutoplay();
+  }
+
+  _syncTheme() {
+    const css = themeCSS(':host', resolveTheme(this.getAttribute('theme'), defaultTheme));
+    if (this._themeStyle.textContent !== css) this._themeStyle.textContent = css;
   }
 
   attributeChangedCallback(name, oldValue, value) {
     if (oldValue === value) return;
     if (name === 'mode') this._syncMode();
+    else if (name === 'theme') this._syncTheme();
     else if (name === 'src') {
       if (this.isConnected) this._loadSource();
     } else if (name === 'no-dim' && this._source !== null) this._scheduleRender(0);
