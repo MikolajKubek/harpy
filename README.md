@@ -5,6 +5,10 @@ comes with a Markdown description, and a final summary step shows the whole pict
 diagrams with its own renderer, in its own visual style: colour-coded responsibilities, right-angled
 connectors, and a night and a parchment theme.
 
+[![A checkout flow diagram unfolding step by step, with a description for each step](docs/assets/demo.gif)](https://mikolajkubek.github.io/harpy/)
+
+**[Try it live →](https://mikolajkubek.github.io/harpy/)**
+
 ## Usage
 
 No build step. Import the module and write a `<harpy-diagram>`:
@@ -156,3 +160,5 @@ npm run test:e2e    # drives examples/index.html in Chromium; needs network for 
 ```
 
 `CHROMIUM_PATH=/path/to/chrome` picks a specific browser, and `SCREENSHOTS=dir` saves screenshots.
+
+`node scripts/readme-gif.mjs` re-records `docs/assets/demo.gif`, the README preview (needs ImageMagick; `THEME=light` for parchment).
