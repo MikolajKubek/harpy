@@ -58,6 +58,7 @@ at runtime (only the optional web fonts):
 | `dist/harpy.esm.min.js` | ES module: `import { configure } from '…/harpy.esm.min.js'` |
 | `dist/harpy.min.js.b64` | The classic script in base64, to embed without any request: `<script src="data:text/javascript;base64,…"></script>` |
 | `dist/embed-example.html` | A page that embeds the base64 build; open it straight from disk |
+| `dist/THIRD_PARTY_LICENSES.txt` | Licenses of the libraries bundled in |
 
 Straight from the repository via jsDelivr:
 
@@ -162,3 +163,21 @@ npm run test:e2e    # drives examples/index.html in Chromium; needs network for 
 `CHROMIUM_PATH=/path/to/chrome` picks a specific browser, and `SCREENSHOTS=dir` saves screenshots.
 
 `node scripts/readme-gif.mjs` re-records `docs/assets/demo.gif`, the README preview (needs ImageMagick; `THEME=light` for parchment).
+
+## Acknowledgements
+
+- **[Mermaid](https://mermaid.js.org/)** (MIT) defined the diagram syntax that Harpy reads. Harpy has
+  its own parser and renderer and uses no Mermaid code; it's an independent project, not affiliated
+  with or endorsed by Mermaid.
+- **[dagre](https://github.com/dagrejs/dagre)** and its **graphlib** (MIT, © Chris Pettitt) place
+  the nodes and subgraphs of flowcharts.
+- **[marked](https://marked.js.org/)** (MIT) renders the step descriptions, and
+  **[DOMPurify](https://github.com/cure53/DOMPurify)** (MPL-2.0 or Apache-2.0, © Cure53) sanitises them.
+- Fonts from Google Fonts: Cinzel, Cormorant Garamond, EB Garamond and JetBrains Mono (SIL Open Font License).
+
+The `dist/` bundles include dagre, graphlib, marked and DOMPurify; their licenses are in
+`dist/THIRD_PARTY_LICENSES.txt` and at the end of each bundle.
+
+## License
+
+[MIT](LICENSE) © Mikołaj Kubik

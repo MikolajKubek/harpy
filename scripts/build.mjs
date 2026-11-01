@@ -8,7 +8,29 @@ import { build } from 'esbuild';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
-const banner = `/*! Harpy ${pkg.version} | step-by-step diagrams in Mermaid syntax | https://github.com/MikolajKubek/harpy */`;
+const banner = `/*! Harpy ${pkg.version} | MIT License | (c) Mikołaj Kubik | step-by-step diagrams in Mermaid syntax | https://github.com/MikolajKubek/harpy
+ * Bundles dagre and graphlib (MIT), marked (MIT) and DOMPurify (MPL-2.0 OR Apache-2.0); their notices follow at the end of this file. */`;
+
+// Third-party code shipped inside the bundles, with the license files that must travel with it.
+const bundled = [
+  ['@dagrejs/dagre', ['LICENSE']],
+  ['@dagrejs/graphlib', ['LICENSE']],
+  ['marked', ['LICENSE']],
+  ['dompurify', ['LICENSE']],
+];
+const notices = [];
+for (const [name, files] of bundled) {
+  const { version, license, homepage } = JSON.parse(await readFile(`node_modules/${name}/package.json`));
+  const texts = await Promise.all(files.map((f) => readFile(`node_modules/${name}/${f}`, 'utf8')));
+  notices.push({ license, text: `${name} ${version} | ${license} | ${homepage ?? ''}\n\n${texts.join('\n').trim()}` });
+}
+const rule = `\n\n${'='.repeat(78)}\n\n`;
+const thirdParty = `Third-party software bundled in Harpy's dist/ builds\n\n${notices.map((n) => n.text).join(rule)}\n`;
+// MIT asks for its notice in every copy, so the bundles carry the MIT texts in full. DOMPurify's
+// own @license line (kept by legalComments) points to its license, as its minified builds do.
+const mit = notices.filter((n) => n.license === 'MIT').map((n) => n.text).join(rule);
+const footer = `/*!\n${mit.replaceAll('*/', '* /')}\n*/`;
+
 const common = {
   entryPoints: ['src/bundle.js'],
   bundle: true,
@@ -17,10 +39,12 @@ const common = {
   legalComments: 'eof',
   charset: 'ascii', // escape non-ASCII so the file works whatever charset it is served with
   banner: { js: banner },
+  footer: { js: footer },
   logLevel: 'warning',
 };
 
 await mkdir('dist', { recursive: true });
+await writeFile('dist/THIRD_PARTY_LICENSES.txt', thirdParty);
 await build({ ...common, format: 'iife', globalName: 'Harpy', outfile: 'dist/harpy.min.js' });
 await build({ ...common, format: 'esm', outfile: 'dist/harpy.esm.min.js' });
 
