@@ -1,164 +1,145 @@
-// <harpy-diagram>: a self-contained player for step-by-step Mermaid diagrams.
+// <harpy-diagram>: a self-contained player for step-by-step diagrams written in Mermaid syntax.
 //
 //   <harpy-diagram mode="preview">            preview | split (source editor side by side)
 //     <script type="text/harpy"> ...document... </script>
 //   </harpy-diagram>
 //
 // Other attributes: src (load the document from a URL), theme (auto | light | dark),
-// mermaid-theme (any Mermaid theme), no-dim (don't fade earlier steps).
+// no-dim (don't fade earlier steps).
 // Events: harpy-step {index, id, summary}, harpy-change {source}.
 
 import { parseDocument, dedent } from './source.js';
-import { analyze, render, bind, resolveRefs } from './mermaid-adapter.js';
+import { parseDiagram, assignSteps, aliases, resolveRefs } from './diagram/index.js';
+import { createMeasurer } from './layout/text.js';
+import { layoutFlowchart } from './layout/flowchart.js';
+import { layoutSequence } from './layout/sequence.js';
+import { renderDiagram } from './render/svg.js';
+import { DIAGRAM_CSS, themeTokens } from './render/styles.js';
 import { Player } from './player.js';
 import { renderMarkdownAll } from './markdown.js';
+import { loadDagre, loadFonts } from './deps.js';
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
+const roman = (n) => ROMAN[n - 1] ?? String(n);
+// Diagrams never shrink below this share of their natural size; narrow screens scroll instead.
+const MIN_DIAGRAM_SCALE = 0.8;
+const AUTOPLAY_MS = 3600;
 
 const STYLES = /* css */ `
+${themeTokens(':host', { lightSelector: ':host([theme="light"])', darkSelector: ':host([theme="dark"])' })}
 :host {
-  --hp-bg: #ffffff;
-  --hp-surface: #f6f7f9;
-  --hp-editor: #fbfbfc;
-  --hp-border: #e2e4e9;
-  --hp-border-strong: #c9ccd4;
-  --hp-text: #1c1f25;
-  --hp-muted: #5e6572;
-  --hp-accent: var(--harpy-accent, #4f46e5);
-  --hp-accent-soft: color-mix(in srgb, var(--hp-accent) 13%, transparent);
-  --hp-code: #eff1f4;
-  --hp-warn: #9a5b00;
-  --hp-error: #b42318;
-  --hp-error-bg: #fef3f2;
+  --hp-accent: var(--harpy-accent, var(--hp-glow));
   display: block;
   container-type: inline-size;
-  color: var(--hp-text);
-  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--hp-ink);
+  font: 400 17px/1.6 "EB Garamond", Garamond, Georgia, serif;
   outline: none;
-}
-@media (prefers-color-scheme: dark) {
-  :host(:not([theme="light"])) {
-    --hp-bg: #15171c; --hp-surface: #1c1f26; --hp-editor: #121418; --hp-border: #2b2f38;
-    --hp-border-strong: #424855; --hp-text: #e5e7eb; --hp-muted: #9aa1ad;
-    --hp-accent: var(--harpy-accent, #8f8aff); --hp-code: #262a33; --hp-warn: #f0b552;
-    --hp-error: #ff8a80; --hp-error-bg: #2a1716;
-  }
-}
-:host([theme="dark"]) {
-  --hp-bg: #15171c; --hp-surface: #1c1f26; --hp-editor: #121418; --hp-border: #2b2f38;
-  --hp-border-strong: #424855; --hp-text: #e5e7eb; --hp-muted: #9aa1ad;
-  --hp-accent: var(--harpy-accent, #8f8aff); --hp-code: #262a33; --hp-warn: #f0b552;
-  --hp-error: #ff8a80; --hp-error-bg: #2a1716;
 }
 [hidden] { display: none !important; }
 * { box-sizing: border-box; }
 
-.frame {
-  background: var(--hp-bg);
-  border: 1px solid var(--hp-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-:host(:focus-visible) .frame { outline: 2px solid var(--hp-accent); outline-offset: 2px; }
+.frame { background: var(--hp-stage); border: 1px solid var(--hp-line); border-radius: 4px; overflow: hidden; }
+:host(:focus-visible) .frame { box-shadow: 0 0 0 2px var(--hp-bg), 0 0 0 3px var(--hp-accent); }
 
-.bar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px;
-  background: var(--hp-surface);
-  border-bottom: 1px solid var(--hp-border);
-}
-.heading { flex: 1; min-width: 0; }
-.title { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.3; }
-.intro { margin-top: 2px; color: var(--hp-muted); font-size: .875rem; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 18px; border-bottom: 1px solid var(--hp-line); background: var(--hp-surface); }
+.heading { flex: 1 1 260px; min-width: 0; }
+.title { margin: 0; font: 600 22px/1.2 "Cormorant Garamond", Garamond, serif; color: var(--hp-ink-bright); }
+.intro { margin-top: 2px; color: var(--hp-ink-soft); font-size: 15.5px; line-height: 1.45; }
 .intro > * { margin: 0; }
-
-.modes {
-  display: inline-flex; flex-shrink: 0; padding: 2px; gap: 2px;
-  background: var(--hp-bg); border: 1px solid var(--hp-border); border-radius: 8px;
-}
+.modes { display: inline-flex; flex-shrink: 0; margin-left: auto; padding: 3px; gap: 2px; border: 1px solid var(--hp-line); border-radius: 999px; }
 .modes button {
-  border: 0; border-radius: 6px; padding: 4px 10px;
-  background: transparent; color: var(--hp-muted);
-  font: inherit; font-size: .8125rem; cursor: pointer;
+  border: 0; border-radius: 999px; padding: 6px 12px; background: transparent; color: var(--hp-ink-faint); cursor: pointer;
+  font: 600 10.5px/1 Cinzel, Georgia, serif; letter-spacing: .16em; text-transform: uppercase;
 }
-.modes button:hover { color: var(--hp-text); }
-.modes button[aria-pressed="true"] { background: var(--hp-accent-soft); color: var(--hp-accent); font-weight: 600; }
-.modes button:focus-visible, .nav:focus-visible, .dot:focus-visible { outline: 2px solid var(--hp-accent); outline-offset: 1px; }
+.modes button:hover { color: var(--hp-ink); }
+.modes button[aria-pressed="true"] { background: color-mix(in srgb, var(--hp-accent) 14%, transparent); color: var(--hp-accent); }
 
 .body { display: grid; grid-template-columns: minmax(0, 1fr); }
-.frame[data-mode="split"] .body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
-
-.editor { display: none; flex-direction: column; min-width: 0; background: var(--hp-editor); border-right: 1px solid var(--hp-border); }
+.frame[data-mode="split"] .body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); }
+.editor { display: none; flex-direction: column; min-width: 0; background: var(--hp-code); border-right: 1px solid var(--hp-line); }
 .frame[data-mode="split"] .editor { display: flex; }
 textarea {
-  flex: 1; width: 100%; min-height: 380px; margin: 0; padding: 14px 16px;
-  border: 0; outline: none; resize: none;
-  background: transparent; color: var(--hp-text);
-  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  tab-size: 2; white-space: pre; overflow: auto;
+  flex: 1; width: 100%; min-height: 420px; margin: 0; padding: 16px 18px; border: 0; outline: none; resize: none;
+  background: transparent; color: var(--hp-ink);
+  font: 13px/1.7 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-ligatures: none;
+  tab-size: 2; white-space: pre; overflow: auto; caret-color: var(--hp-accent);
 }
-.status { padding: 6px 12px; border-top: 1px solid var(--hp-border); font-size: .75rem; color: var(--hp-muted); }
-.status ul { margin: 0; padding-left: 1.1em; color: var(--hp-warn); }
+textarea::selection { background: color-mix(in srgb, var(--hp-accent) 28%, transparent); }
+.status { padding: 8px 14px; border-top: 1px solid var(--hp-line); font-size: 14px; color: var(--hp-ink-soft); }
+.status ul { margin: 0; padding-left: 1.1em; }
 
-@container (max-width: 720px) {
+@container (max-width: 760px) {
   .frame[data-mode="split"] .body { grid-template-columns: minmax(0, 1fr); }
-  .editor { border-right: 0; border-bottom: 1px solid var(--hp-border); }
-  textarea { min-height: 240px; }
+  .editor { border-right: 0; border-bottom: 1px solid var(--hp-line); }
+  textarea { min-height: 260px; }
 }
 
 .player { display: flex; flex-direction: column; min-width: 0; }
-.stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: safe center; min-height: 220px; padding: 20px 16px; overflow-x: auto; }
-.svg-host { width: 100%; min-width: min-content; display: flex; justify-content: safe center; }
-.svg-host svg { display: block; max-width: 100%; height: auto; max-height: var(--harpy-max-height, 70vh); }
-.placeholder { color: var(--hp-muted); font-size: .875rem; }
+.stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: safe center; min-height: 200px; padding: 28px 22px; overflow-x: auto; }
+.svg-host { min-width: min-content; display: flex; justify-content: safe center; width: 100%; }
+.svg-host svg { max-width: 100%; height: auto; max-height: var(--harpy-max-height, 80vh); }
+.placeholder { color: var(--hp-ink-faint); font-style: italic; }
 .error {
-  position: absolute; left: 12px; right: 12px; bottom: 12px; max-height: 45%; overflow: auto; margin: 0;
-  padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--hp-error) 35%, transparent); border-radius: 8px;
-  background: var(--hp-error-bg); color: var(--hp-error);
-  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap;
+  position: absolute; left: 14px; right: 14px; bottom: 14px; max-height: 45%; overflow: auto; margin: 0;
+  padding: 10px 12px; border-left: 2px solid var(--hp-error); background: var(--hp-error-bg); color: var(--hp-error);
+  font: 12.5px/1.5 "JetBrains Mono", ui-monospace, monospace; white-space: pre-wrap;
 }
 
-.caption { padding: 14px 18px 4px; border-top: 1px solid var(--hp-border); }
-.counter { color: var(--hp-accent); font-size: .75rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
-.step-title { margin: 2px 0 6px; font-size: 1.0625rem; font-weight: 600; line-height: 1.35; }
-.description { font-size: .9375rem; }
+.narration { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 28px; align-items: end; padding: 20px 22px 22px; border-top: 1px solid var(--hp-line); }
+.counter { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; margin: 0; font: 600 10.5px/1 Cinzel, Georgia, serif; letter-spacing: .24em; text-transform: uppercase; color: var(--hp-ink-faint); }
+.counter b { color: var(--hp-accent); font-weight: 600; }
+.counter::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--hp-line), transparent); }
+.text { min-height: 84px; }
+.text.enter { animation: rise .45s ease both; }
+.step-title { margin: 0 0 4px; font: 600 25px/1.2 "Cormorant Garamond", Garamond, serif; color: var(--hp-ink-bright); }
+.description { color: var(--hp-ink-soft); max-width: 68ch; }
 .description > :first-child { margin-top: 0; }
 .description > :last-child { margin-bottom: 0; }
 .description a { color: var(--hp-accent); }
-.description code { padding: .1em .35em; border-radius: 4px; background: var(--hp-code); font-size: .875em; }
-.description pre { padding: 10px 12px; border-radius: 8px; background: var(--hp-code); overflow: auto; }
+.description strong { color: var(--hp-ink); font-weight: 500; }
+.description code { padding: .05em .35em; border-radius: 3px; background: var(--hp-code); font: 500 .8em "JetBrains Mono", ui-monospace, monospace; color: var(--hp-bronze); }
+.description pre { padding: 10px 12px; border-radius: 4px; background: var(--hp-code); overflow: auto; }
 .description pre code { padding: 0; background: none; }
-.description blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--hp-border-strong); color: var(--hp-muted); }
+.description blockquote { margin: 0; padding-left: 12px; border-left: 2px solid var(--hp-frame); }
 
-.controls { display: flex; align-items: center; gap: 10px; padding: 10px 14px 14px; }
-.nav {
-  display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0;
-  border: 1px solid var(--hp-border); border-radius: 8px;
-  background: var(--hp-bg); color: var(--hp-text); cursor: pointer;
+.controls { display: flex; align-items: center; gap: 8px; }
+.round {
+  display: grid; place-items: center; width: 38px; height: 38px; padding: 0; flex-shrink: 0;
+  border: 1px solid var(--hp-frame); border-radius: 50%; background: transparent; color: var(--hp-ink); cursor: pointer;
+  transition: border-color .25s, color .25s, box-shadow .25s;
 }
-.nav:hover:not(:disabled) { border-color: var(--hp-accent); color: var(--hp-accent); }
-.nav:disabled { opacity: .4; cursor: default; }
-.nav svg { width: 16px; height: 16px; }
-.dots { flex: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
-.dot { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }
-.dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--hp-border-strong); transition: width .2s, background-color .2s; }
-.dot.summary::before { border-radius: 2px; transform: rotate(45deg); }
-.dot:hover::before { background: var(--hp-muted); }
-.dot[aria-current="step"]::before { width: 18px; border-radius: 4px; transform: none; background: var(--hp-accent); }
+.round:hover:not(:disabled) { border-color: var(--hp-accent); color: var(--hp-accent); box-shadow: 0 0 16px -6px var(--hp-accent); }
+.round:disabled { opacity: .35; cursor: default; }
+.round svg { width: 15px; height: 15px; }
+.play .i-pause { display: none; }
+.play[aria-pressed="true"] { border-color: var(--hp-accent); color: var(--hp-accent); }
+.play[aria-pressed="true"] .i-play { display: none; }
+.play[aria-pressed="true"] .i-pause { display: block; }
+.pips { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; padding: 0 4px; }
+.pip { display: grid; place-items: center; width: 20px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; }
+.pip::before { content: ""; width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid var(--hp-bronze); transition: background .3s, box-shadow .3s, border-color .3s; }
+.pip.summary::before { transform: none; border-radius: 50%; width: 8px; height: 8px; }
+.pip.done::before { background: var(--hp-bronze); }
+.pip[aria-current="step"]::before { background: var(--hp-accent); border-color: var(--hp-accent); box-shadow: 0 0 9px var(--hp-accent); }
+.modes button:focus-visible, .round:focus-visible, .pip:focus-visible { outline: 1px solid var(--hp-accent); outline-offset: 2px; }
 
-.svg-host .harpy-el { transition: opacity var(--harpy-duration, 420ms) ease, filter 300ms ease; }
-.svg-host .harpy-hidden { opacity: 0 !important; pointer-events: none; }
-.svg-host .harpy-dim { opacity: var(--harpy-dim-opacity, .28); }
-.svg-host .harpy-focus { filter: drop-shadow(0 0 5px var(--hp-accent)); }
-@media (prefers-reduced-motion: reduce) {
-  .svg-host .harpy-el, .dot::before { transition: none; }
+@container (max-width: 560px) {
+  .narration { grid-template-columns: minmax(0, 1fr); padding: 18px 16px 18px; }
+  .controls { justify-content: space-between; }
+  .stage { padding: 20px 14px; justify-content: flex-start; }
 }
+@keyframes rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .text.enter { animation: none; } .pip::before, .round { transition: none; } }
+
+${DIAGRAM_CSS}
 `;
 
-const CHEVRON = (d) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+const icon = (d, cls = '') => `<svg class="${cls}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 
 const MARKUP = `
 <div class="frame" part="frame">
   <header class="bar" part="bar">
-    <div class="heading"><h2 class="title" hidden></h2><div class="intro" hidden></div></div>
+    <div class="heading" hidden><h2 class="title" hidden></h2><div class="intro" hidden></div></div>
     <div class="modes" role="group" aria-label="View mode">
       <button type="button" data-mode="preview">Preview</button>
       <button type="button" data-mode="split">Side by side</button>
@@ -172,35 +153,30 @@ const MARKUP = `
     <section class="player" part="player">
       <div class="stage">
         <div class="svg-host"></div>
-        <div class="placeholder">Rendering…</div>
+        <div class="placeholder">Drawing…</div>
         <pre class="error" role="alert" hidden></pre>
       </div>
-      <div class="caption" aria-live="polite" hidden>
-        <div class="counter"></div>
-        <h3 class="step-title"></h3>
-        <div class="description"></div>
+      <div class="narration" hidden>
+        <p class="counter" aria-hidden="true"></p>
+        <div class="text" aria-live="polite"><h3 class="step-title"></h3><div class="description"></div></div>
+        <nav class="controls" aria-label="Steps" hidden>
+          <button type="button" class="round prev" aria-label="Previous step">${icon('M10 3.5 5.5 8l4.5 4.5')}</button>
+          <div class="pips"></div>
+          <button type="button" class="round next" aria-label="Next step">${icon('M6 3.5 10.5 8 6 12.5')}</button>
+          <button type="button" class="round play" aria-label="Play steps automatically" aria-pressed="false">${icon('M5 3.5v9l7-4.5z', 'i-play')}${icon('M5.5 4v8M10.5 4v8', 'i-pause')}</button>
+        </nav>
       </div>
-      <nav class="controls" aria-label="Steps" hidden>
-        <button type="button" class="nav prev" aria-label="Previous step">${CHEVRON('M10 3.5 5.5 8l4.5 4.5')}</button>
-        <div class="dots"></div>
-        <button type="button" class="nav next" aria-label="Next step">${CHEVRON('M6 3.5 10.5 8 6 12.5')}</button>
-      </nav>
     </section>
   </div>
 </div>`;
 
-const MIN_DIAGRAM_WIDTH = 480;
-
 let template;
 let instances = 0;
 
-function errorMessage(e) {
-  const text = e?.message ?? e?.str ?? String(e);
-  return text.replace(/^Error:\s*/, '');
-}
+const errorMessage = (e) => String(e?.message ?? e).replace(/^Error:\s*/, '');
 
 export class HarpyDiagram extends HTMLElement {
-  static observedAttributes = ['mode', 'theme', 'mermaid-theme', 'src', 'no-dim'];
+  static observedAttributes = ['mode', 'theme', 'src', 'no-dim'];
 
   constructor() {
     super();
@@ -212,11 +188,11 @@ export class HarpyDiagram extends HTMLElement {
     root.append(template.content.cloneNode(true));
     const $ = (s) => root.querySelector(s);
     this._el = {
-      frame: $('.frame'), title: $('.title'), intro: $('.intro'), modes: $('.modes'),
-      textarea: $('textarea'), status: $('.status'), svgHost: $('.svg-host'),
-      placeholder: $('.placeholder'), error: $('.error'), caption: $('.caption'),
-      counter: $('.counter'), stepTitle: $('.step-title'), description: $('.description'),
-      controls: $('.controls'), dots: $('.dots'), prev: $('.prev'), next: $('.next'),
+      frame: $('.frame'), heading: $('.heading'), title: $('.title'), intro: $('.intro'), modes: $('.modes'),
+      textarea: $('textarea'), status: $('.status'), stage: $('.stage'), svgHost: $('.svg-host'),
+      placeholder: $('.placeholder'), error: $('.error'), narration: $('.narration'), counter: $('.counter'),
+      text: $('.text'), stepTitle: $('.step-title'), description: $('.description'),
+      controls: $('.controls'), pips: $('.pips'), prev: $('.prev'), next: $('.next'), play: $('.play'),
     };
     this._uid = ++instances;
     this._source = null;
@@ -225,6 +201,7 @@ export class HarpyDiagram extends HTMLElement {
     this._player = null;
     this._token = 0;
     this._timer = null;
+    this._autoplay = null;
     this._srcToken = 0;
 
     this._el.modes.addEventListener('click', (e) => {
@@ -233,14 +210,15 @@ export class HarpyDiagram extends HTMLElement {
     });
     this._el.prev.addEventListener('click', () => this.prev());
     this._el.next.addEventListener('click', () => this.next());
-    this._el.dots.addEventListener('click', (e) => {
-      const dot = e.target.closest('.dot');
-      if (dot) this.goTo(Number(dot.dataset.index));
+    this._el.play.addEventListener('click', () => (this._autoplay ? this._stopAutoplay() : this._startAutoplay()));
+    this._el.pips.addEventListener('click', (e) => {
+      const pip = e.target.closest('.pip');
+      if (pip) this.goTo(Number(pip.dataset.index));
     });
     this._el.textarea.addEventListener('input', () => {
       this._source = this._el.textarea.value;
       this.dispatchEvent(new CustomEvent('harpy-change', { detail: { source: this._source }, bubbles: true }));
-      this._scheduleRender(300);
+      this._scheduleRender(250);
     });
     this._el.textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -250,21 +228,16 @@ export class HarpyDiagram extends HTMLElement {
       }
     });
     this.addEventListener('keydown', (e) => this._onKey(e));
-    this._onScheme = () => {
-      if (!this.hasAttribute('mermaid-theme') && !['light', 'dark'].includes(this.getAttribute('theme'))) this._scheduleRender(0);
-    };
   }
 
   connectedCallback() {
     if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
     this._syncMode();
-    this._scheme = matchMedia('(prefers-color-scheme: dark)');
-    this._scheme.addEventListener('change', this._onScheme);
     if (this._source === null) this._loadSource();
   }
 
   disconnectedCallback() {
-    this._scheme?.removeEventListener('change', this._onScheme);
+    this._stopAutoplay();
   }
 
   attributeChangedCallback(name, oldValue, value) {
@@ -272,7 +245,7 @@ export class HarpyDiagram extends HTMLElement {
     if (name === 'mode') this._syncMode();
     else if (name === 'src') {
       if (this.isConnected) this._loadSource();
-    } else if (this._source !== null) this._scheduleRender(0);
+    } else if (name === 'no-dim' && this._source !== null) this._scheduleRender(0);
   }
 
   /** "preview" or "split". */
@@ -310,10 +283,28 @@ export class HarpyDiagram extends HTMLElement {
     this.goTo(this._index - 1);
   }
   /** Goes to a step by index or id. */
-  goTo(target) {
+  goTo(target, { fromAutoplay = false } = {}) {
+    if (!fromAutoplay) this._stopAutoplay();
     const index = typeof target === 'string' ? this._steps.findIndex((s) => s.id === target) : target;
-    if (index < 0 || index >= this._steps.length || index === this._index) return;
+    if (index < 0 || index >= this._steps.length) return;
+    if (index === this._index && this._player?.index === index) return;
     this._go(index, { animate: true });
+  }
+
+  _startAutoplay() {
+    if (this._steps.length < 2) return;
+    if (this._index >= this._steps.length - 1) this.goTo(0, { fromAutoplay: true });
+    this._el.play.setAttribute('aria-pressed', 'true');
+    this._autoplay = setInterval(() => {
+      if (this._index >= this._steps.length - 1) this._stopAutoplay();
+      else this.goTo(this._index + 1, { fromAutoplay: true });
+    }, AUTOPLAY_MS);
+  }
+
+  _stopAutoplay() {
+    clearInterval(this._autoplay);
+    this._autoplay = null;
+    this._el.play.setAttribute('aria-pressed', 'false');
   }
 
   _onKey(e) {
@@ -355,14 +346,6 @@ export class HarpyDiagram extends HTMLElement {
     this._timer = setTimeout(() => this._render(), delay);
   }
 
-  _mermaidTheme() {
-    const explicit = this.getAttribute('mermaid-theme');
-    if (explicit) return explicit;
-    const theme = this.getAttribute('theme');
-    const dark = theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-    return dark ? 'dark' : 'default';
-  }
-
   async _render() {
     const token = ++this._token;
     const doc = parseDocument(this._source ?? '');
@@ -373,19 +356,29 @@ export class HarpyDiagram extends HTMLElement {
       return;
     }
     try {
-      const analysis = await analyze(doc.diagram, doc.steps);
-      if (token !== this._token) return;
-      const warnings = [...doc.warnings, ...analysis.warnings];
+      const model = parseDiagram(doc.diagram);
+      const warnings = [...doc.warnings, ...model.warnings];
+      const stepUnits = assignSteps(model, doc.steps);
+      const names = aliases(model);
       const plan = doc.steps.map((s, i) => ({
-        units: analysis.stepUnits[i],
-        focus: s.focus ? resolveRefs(s.focus, analysis, warnings, `Step "${s.id}" focus`) : null,
-        show: resolveRefs(s.show, analysis, warnings, `Step "${s.id}" show`),
-        hide: resolveRefs(s.hide, analysis, warnings, `Step "${s.id}" hide`),
+        units: stepUnits[i],
+        focus: s.focus ? resolveRefs(s.focus, names, warnings, `Step "${s.id}" focus`) : null,
+        show: resolveRefs(s.show, names, warnings, `Step "${s.id}" show`),
+        hide: resolveRefs(s.hide, names, warnings, `Step "${s.id}" hide`),
       }));
-      const renderId = `harpy-${this._uid}-${token}`;
       const texts = [doc.intro, ...doc.steps.map((s) => doc.descriptions.get(s.id) ?? ''), doc.summary?.body ?? ''];
-      const [svgMarkup, html] = await Promise.all([render(renderId, doc.diagram, this._mermaidTheme()), renderMarkdownAll(texts)]);
+      const [dagre, html] = await Promise.all([
+        model.kind === 'flowchart' ? loadDagre() : null,
+        renderMarkdownAll(texts),
+        loadFonts(),
+      ]);
       if (token !== this._token) return;
+
+      const measure = createMeasurer();
+      const layout = model.kind === 'flowchart' ? layoutFlowchart(model, { dagre, measure }) : layoutSequence(model, { measure });
+      const { svg, units } = renderDiagram(layout, { id: `hd${this._uid}-${token}` });
+      svg.setAttribute('aria-label', doc.title ?? (model.kind === 'flowchart' ? 'Flowchart' : 'Sequence diagram'));
+      svg.style.minWidth = `${Math.round(layout.width * MIN_DIAGRAM_SCALE)}px`;
 
       const [introHtml, ...stepHtml] = html;
       const summaryHtml = stepHtml.pop();
@@ -393,49 +386,63 @@ export class HarpyDiagram extends HTMLElement {
       this._el.title.hidden = !doc.title;
       this._el.intro.innerHTML = introHtml;
       this._el.intro.hidden = !introHtml;
+      this._el.heading.hidden = !doc.title && !introHtml;
 
-      this._el.svgHost.innerHTML = svgMarkup;
+      this._el.svgHost.replaceChildren(svg);
       this._el.placeholder.hidden = true;
-      const svg = this._el.svgHost.querySelector('svg');
-      // Don't let wide diagrams shrink into illegibility on narrow screens; scroll instead.
-      const natural = parseFloat(svg.style.maxWidth);
-      if (natural) svg.style.minWidth = `${Math.min(natural, MIN_DIAGRAM_WIDTH)}px`;
       const firstRender = !this._player;
-      this._player = new Player(bind(svg, analysis, renderId), plan, { dim: !this.hasAttribute('no-dim') });
+      this._player = new Player(units, plan, { dim: !this.hasAttribute('no-dim') });
 
       const previousId = this._steps[this._index]?.id;
       this._steps = doc.steps.map((s, i) => ({ id: s.id, title: s.title ?? s.id, heading: s.title ?? s.id, html: stepHtml[i], summary: false }));
       if (doc.steps.length || doc.summary) {
-        this._steps.push({ id: 'summary', title: doc.summary?.title ?? 'Summary', heading: doc.summary?.title ?? '', html: summaryHtml, summary: true });
+        this._steps.push({ id: 'summary', title: doc.summary?.title ?? 'Summary', heading: doc.summary?.title ?? (doc.steps.length ? 'The whole picture' : ''), html: summaryHtml, summary: true });
       }
       let index = this._steps.findIndex((s) => s.id === previousId);
       if (index < 0) index = Math.min(this._index, Math.max(this._steps.length - 1, 0));
 
-      this._renderDots();
+      this._renderPips();
       this._setWarnings(warnings);
       this._showError(null);
-      this._go(index, { animate: firstRender });
+      if (firstRender && doc.steps.length) this._revealWhenVisible(index);
+      else this._go(index, { animate: false });
     } catch (e) {
       if (token === this._token) this._showError(errorMessage(e));
     }
   }
 
-  _renderDots() {
-    const dots = this._steps.map((s, i) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = s.summary ? 'dot summary' : 'dot';
-      b.dataset.index = String(i);
-      b.title = s.summary ? s.title : `${i + 1}. ${s.title}`;
-      b.setAttribute('aria-label', b.title);
-      return b;
-    });
-    this._el.dots.replaceChildren(...dots);
+  /** Shows the narration right away and plays the first step in once the diagram is on screen. */
+  _revealWhenVisible(index) {
+    this._go(index, { animate: false, silent: true });
+    const play = () => {
+      if (this._player.index === -1) this._go(index, { animate: true });
+    };
+    if (!('IntersectionObserver' in window)) return play();
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      play();
+    }, { threshold: 0.3 });
+    io.observe(this._el.stage);
   }
 
-  _go(index, { animate }) {
+  _renderPips() {
+    const pips = this._steps.map((s, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = s.summary ? 'pip summary' : 'pip';
+      b.dataset.index = String(i);
+      b.title = s.summary ? s.title : `${roman(i + 1)}. ${s.title}`;
+      b.setAttribute('aria-label', s.summary ? 'Summary' : `Step ${i + 1}: ${s.title}`);
+      return b;
+    });
+    this._el.pips.replaceChildren(...pips);
+  }
+
+  /** Updates the narration and controls; `silent` skips the diagram and the event. */
+  _go(index, { animate, silent = false }) {
     const hasSteps = this._steps.length > 0;
-    this._el.caption.hidden = !hasSteps;
+    this._el.narration.hidden = !hasSteps;
     this._el.controls.hidden = this._steps.length < 2;
     if (!this._player) return;
     if (!hasSteps) {
@@ -443,22 +450,29 @@ export class HarpyDiagram extends HTMLElement {
       this._index = 0;
       return;
     }
-    this._player.go(index, { animate });
+    if (!silent) this._player.go(index, { animate });
     this._index = index;
     const step = this._steps[index];
     const count = this._steps.length - (this._steps.at(-1).summary ? 1 : 0);
-    this._el.counter.textContent = step.summary ? 'Summary' : `Step ${index + 1} of ${count}`;
+    this._el.counter.innerHTML = step.summary ? '<b>Summary</b>' : `Step <b>${roman(index + 1)}</b> of ${roman(count)}`;
     this._el.stepTitle.textContent = step.heading;
     this._el.stepTitle.hidden = !step.heading;
     this._el.description.innerHTML = step.html;
     this._el.description.hidden = !step.html;
+    if (animate) {
+      this._el.text.classList.remove('enter');
+      void this._el.text.offsetWidth;
+      this._el.text.classList.add('enter');
+    }
     this._el.prev.disabled = index === 0;
     this._el.next.disabled = index === this._steps.length - 1;
-    for (const dot of this._el.dots.children) {
-      if (Number(dot.dataset.index) === index) dot.setAttribute('aria-current', 'step');
-      else dot.removeAttribute('aria-current');
+    for (const pip of this._el.pips.children) {
+      const i = Number(pip.dataset.index);
+      pip.classList.toggle('done', i < index);
+      if (i === index) pip.setAttribute('aria-current', 'step');
+      else pip.removeAttribute('aria-current');
     }
-    this.dispatchEvent(new CustomEvent('harpy-step', { detail: { index, id: step.id, summary: step.summary }, bubbles: true }));
+    if (!silent) this.dispatchEvent(new CustomEvent('harpy-step', { detail: { index, id: step.id, summary: step.summary }, bubbles: true }));
   }
 
   _setWarnings(warnings) {
@@ -473,8 +487,6 @@ export class HarpyDiagram extends HTMLElement {
   _showError(message) {
     this._el.error.textContent = message ?? '';
     this._el.error.hidden = !message;
-    if (message && !this._el.svgHost.firstChild) {
-      this._el.placeholder.hidden = true;
-    }
+    if (message && !this._el.svgHost.firstChild) this._el.placeholder.hidden = true;
   }
 }

@@ -1,12 +1,12 @@
 // Applies a step's visual state to a rendered diagram.
 //
-// Each unit (node, edge, message...) is hidden until the step that introduces it. On the
-// current step new units animate in, units from earlier steps are dimmed, and units listed in
-// `focus=` are highlighted. The final, summary step shows the whole diagram undimmed.
+// Units are hidden until the step that introduces them. The current step's units (or the ones
+// named in focus=) glow in their bright role colour and draw themselves in; earlier units are
+// dimmed. The summary step (any index past the last step) shows everything at rest.
 
-const STAGGER_MS = 110;
-const MAX_STAGGER_MS = 1400;
-const DRAW_MS = 550;
+const STAGGER_MS = 120;
+const MAX_STAGGER_MS = 1500;
+const STATES = ['hd-hidden', 'hd-past', 'hd-current'];
 
 function reducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -14,13 +14,12 @@ function reducedMotion() {
 
 export class Player {
   /**
-   * @param {Map<string, {els: Element[], draw: SVGGeometryElement[]}>} bindings
+   * @param {Map<string, { els: Element[], draw: SVGPathElement[] }>} units
    * @param {{ units: string[], focus: string[]|null, show: string[], hide: string[] }[]} plan
-   *   one entry per step (the summary step is implicit and comes after the last one)
    * @param {{ dim?: boolean }} options
    */
-  constructor(bindings, plan, { dim = true } = {}) {
-    this.bindings = bindings;
+  constructor(units, plan, { dim = true } = {}) {
+    this.units = units;
     this.plan = plan;
     this.dim = dim;
     this.index = -1;
@@ -34,89 +33,67 @@ export class Player {
       }
       for (const u of step.hide) if (!this.hideAt.has(u)) this.hideAt.set(u, i);
     });
-    for (const [u, i] of this.revealAt) this.enterOrder[i].push(u);
     plan.forEach((step, i) => {
-      const order = [...step.show, ...step.units];
-      this.enterOrder[i].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+      for (const u of [...step.show, ...step.units]) {
+        if (this.revealAt.get(u) === i && !this.enterOrder[i].includes(u)) this.enterOrder[i].push(u);
+      }
     });
-
-    // Start with everything hidden, without fading out what Mermaid just drew.
-    instantly(this._allElements(), (el) => el.classList.add('harpy-el', 'harpy-hidden'));
+    if (plan.length) instantly(this._elements(), (el) => el.classList.add('hd-hidden'));
   }
 
-  _allElements() {
-    return [...this.bindings.values()].flatMap((b) => b.els);
-  }
-
-  /** Number of steps including the summary (when there is at least one step). */
-  get length() {
-    return this.plan.length ? this.plan.length + 1 : 0;
-  }
-
-  isSummary(index) {
-    return index >= this.plan.length;
+  _elements() {
+    return [...this.units.values()].flatMap((u) => u.els);
   }
 
   go(index, { animate = true } = {}) {
+    const summary = index >= this.plan.length;
     const forward = index === this.index + 1;
-    const summary = this.isSummary(index);
-    const step = this.plan[index];
-    const fresh = summary ? [] : this.enterOrder[index];
-    const focus = new Set(summary ? [] : step.focus ?? []);
     const motion = animate && forward && !reducedMotion();
-    const apply = [];
+    const fresh = summary ? [] : this.enterOrder[index];
+    const focus = new Set(summary ? [] : this.plan[index].focus ?? fresh);
+    const updates = [];
 
-    for (const [unit, { els, draw }] of this.bindings) {
+    for (const [unit, { els, draw }] of this.units) {
       const reveal = this.revealAt.get(unit) ?? -1;
       const hide = this.hideAt.get(unit) ?? Infinity;
       const visible = summary || (reveal <= index && hide > index);
-      const isNew = !summary && reveal === index;
-      const focused = focus.has(unit);
-      const dimmed = !summary && this.dim && visible && !isNew && !focused && (focus.size > 0 || fresh.length > 0);
+      const entering = !summary && reveal === index;
+      // Focused units glow; the rest of this step's new units stay at full strength; earlier
+      // units are dimmed while something in this step is being shown.
+      const current = visible && !summary && focus.has(unit);
+      let state = null;
+      if (!visible) state = 'hd-hidden';
+      else if (summary || entering) state = current ? 'hd-current' : null;
+      else if (current) state = 'hd-current';
+      else if (this.dim && (focus.size || fresh.length)) state = 'hd-past';
+      const delay = motion && entering ? Math.min(Math.max(0, fresh.indexOf(unit)) * STAGGER_MS, MAX_STAGGER_MS) : 0;
 
-      const order = fresh.indexOf(unit);
-      const delay = motion && isNew ? Math.min(order * STAGGER_MS, MAX_STAGGER_MS) : 0;
       for (const el of els) {
-        apply.push([el, () => {
-          el.style.transitionDelay = delay ? `${delay}ms` : '';
-          el.classList.toggle('harpy-hidden', !visible);
-          el.classList.toggle('harpy-dim', dimmed);
-          el.classList.toggle('harpy-focus', visible && focused);
-          el.classList.toggle('harpy-new', isNew);
+        updates.push([el, () => {
+          el.style.setProperty('--d', `${delay}ms`);
+          el.classList.remove(...STATES);
+          if (state) el.classList.add(state);
         }]);
       }
-      for (const el of draw) {
-        for (const a of el.getAnimations?.() ?? []) a.cancel();
-        if (motion && isNew) drawIn(el, delay);
+      for (const stroke of draw) {
+        stroke.classList.remove('hd-drawing');
+        if (motion && entering) {
+          stroke.style.setProperty('--d', `${delay}ms`);
+          void getComputedStyle(stroke).animationName; // restart the animation
+          stroke.classList.add('hd-drawing');
+        }
       }
     }
-    if (animate) for (const [, fn] of apply) fn();
-    else instantly(apply.map(([el]) => el), (el, i) => apply[i][1]());
+    if (animate) for (const [, fn] of updates) fn();
+    else instantly(updates.map(([el]) => el), (el, i) => updates[i][1]());
     this.index = index;
   }
 }
 
-/** Applies class changes with CSS transitions suppressed, so the new state shows immediately. */
+/** Applies class changes with transitions suppressed, so the state shows immediately. */
 function instantly(els, fn) {
   els.forEach((el) => (el.style.transition = 'none'));
   els.forEach(fn);
-  if (els.length) els[0].getBoundingClientRect(); // commit the styles before re-enabling transitions
+  if (els.length) els[0].getBoundingClientRect();
   els.forEach((el) => (el.style.transition = ''));
-}
-
-function drawIn(el, delay) {
-  let length;
-  try {
-    length = el.getTotalLength();
-  } catch {
-    return;
-  }
-  if (!length || !el.animate) return;
-  el.animate(
-    [
-      { strokeDasharray: `${length} ${length}`, strokeDashoffset: `${length}` },
-      { strokeDasharray: `${length} ${length}`, strokeDashoffset: '0' },
-    ],
-    { duration: DRAW_MS, delay, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'backwards' },
-  );
 }

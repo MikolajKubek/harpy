@@ -17,6 +17,7 @@
     } catch {}
     document.documentElement.classList.add('js');
   </script>
+  <script type="module" src="src/harpy.js"></script>
   <style>
     /* ---------- Tokens: night (default) and parchment ---------- */
     :root {
@@ -134,87 +135,15 @@
     .meander { display: block; width: 100%; height: 26px; color: var(--bronze-deep); }
     .defs { position: absolute; width: 0; height: 0; }
 
+
     /* ---------- Sections ---------- */
     section { padding: 96px 0 0; }
     .section-head { max-width: 640px; margin-bottom: 40px; }
     .section-head .lede { margin: 16px 0 0; }
 
-    /* ---------- Demo figure ---------- */
-    .demo {
-      margin: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
-      outline: none; position: relative;
-    }
-    .demo:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--glow); }
-    .stage { overflow-x: auto; padding: 36px 28px 28px; display: flex; justify-content: safe center; }
-    .stage svg { display: block; width: 100%; height: auto; }
-    .flow .stage svg { min-width: 720px; max-width: 1080px; }
-    .seq .stage svg { min-width: 520px; max-width: 680px; }
-    .narration { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 32px; align-items: end; padding: 24px 28px 26px; border-top: 1px solid var(--line); }
-    .counter { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; margin: 0; font: 600 11px/1 Cinzel, serif; letter-spacing: .24em; text-transform: uppercase; color: var(--ink-faint); }
-    .counter b { color: var(--glow); font-weight: 600; }
-    .counter::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
-    .steps { list-style: none; margin: 0; padding: 0; min-height: 118px; }
-    .steps li + li { margin-top: 18px; }
-    .js .steps li + li { margin-top: 0; }
-    .js .steps li:not(.is-active) { display: none; }
-    .steps li.is-active { animation: rise .5s ease both; }
-    .steps h3 { font-size: 29px; font-weight: 600; line-height: 1.15; margin-bottom: 6px; }
-    .steps p { margin: 0; color: var(--ink-soft); max-width: 62ch; }
-    .controls { display: none; align-items: center; gap: 10px; }
-    .js .controls { display: flex; }
-    .round {
-      display: grid; place-items: center; width: 42px; height: 42px; padding: 0;
-      border: 1px solid var(--bronze-deep); border-radius: 50%; background: transparent; color: var(--ink); cursor: pointer;
-      transition: border-color .25s, color .25s, box-shadow .25s;
-    }
-    .round:hover:not(:disabled) { border-color: var(--glow); color: var(--glow); box-shadow: 0 0 18px -6px var(--glow-shadow); }
-    .round:disabled { opacity: .35; cursor: default; }
-    .round svg { width: 16px; height: 16px; }
-    .round:focus-visible, .pip:focus-visible, .btn:focus-visible, .icon-btn:focus-visible { outline: 1px solid var(--glow); outline-offset: 3px; }
-    .pips { display: flex; align-items: center; gap: 2px; padding: 0 6px; }
-    .pip { display: grid; place-items: center; width: 22px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; }
-    .pip::before { content: ""; width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid var(--bronze); transition: background .3s, box-shadow .3s, border-color .3s; }
-    .pip.summary::before { transform: none; border-radius: 50%; width: 8px; height: 8px; }
-    .pip.done::before { background: var(--bronze); }
-    .pip[aria-current="step"]::before { background: var(--glow); border-color: var(--glow); box-shadow: 0 0 10px var(--glow-shadow); }
-    .play[aria-pressed="true"] { border-color: var(--glow); color: var(--glow); }
-    .play .i-pause { display: none; }
-    .play[aria-pressed="true"] .i-play { display: none; }
-    .play[aria-pressed="true"] .i-pause { display: block; }
-
-    .seq { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
-    .seq .stage { order: 2; border-left: 1px solid var(--line); }
-    .seq .narration { order: 1; grid-template-columns: minmax(0, 1fr); align-content: space-between; border-top: 0; }
-    .seq .steps { min-height: 0; }
-
-    /* ---------- Diagram style: the target look for Harpy's own renderer ---------- */
-    .dg text { font: 400 15px "EB Garamond", Garamond, serif; fill: var(--ink); text-anchor: middle; dominant-baseline: central; transition: fill .45s; }
-    .dg .shape { fill: var(--node-fill); stroke: var(--bronze); stroke-width: 1.25; transition: stroke .45s, fill .45s; }
-    .dg .edge { fill: none; stroke: var(--bronze); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; transition: stroke .45s; }
-    .dg .dashed { stroke-dasharray: 5 5; }
-    .dg .edge-label, .dg .msg-label { font-size: 14px; font-style: italic; fill: var(--ink-soft); }
-    .dg .cluster-frame { fill: none; stroke: var(--bronze-deep); stroke-width: 1; stroke-dasharray: 2 4; }
-    .dg .cluster-title, .dg .tag-text { font: 600 10.5px Cinzel, serif; letter-spacing: .2em; fill: var(--bronze); text-anchor: start; }
-    .dg .lifeline { stroke: var(--bronze-deep); stroke-width: 1; stroke-dasharray: 1 5; stroke-linecap: round; }
-    .dg .frame { fill: none; stroke: var(--bronze-deep); stroke-width: 1; }
-    .dg .tag { fill: var(--bronze-deep); fill-opacity: .35; stroke: var(--bronze-deep); stroke-width: 1; }
-    .dg .tag-text { fill: var(--ink); }
-    .dg .cond { font-size: 13.5px; font-style: italic; fill: var(--ink-soft); text-anchor: start; }
-    .dg .divider { stroke: var(--bronze-deep); stroke-width: 1; stroke-dasharray: 4 4; }
-
-    /* Step states, set by the stepper script. Without JS everything stays visible. */
-    .dg [data-step] { transition: opacity .55s ease var(--d, 0ms), filter .55s ease; }
-    .dg .st-hidden { opacity: 0; }
-    .dg .st-past { opacity: .5; }
-    .dg .st-current { filter: drop-shadow(0 0 5px var(--glow-shadow)); }
-    .dg .st-current .shape { stroke: var(--glow); fill: var(--glow-fill); }
-    .dg .st-current.edge, .dg .st-current .edge { stroke: var(--glow); }
-    .dg .st-current text { fill: var(--ink-bright); }
-    .dg .st-current.edge-label, .dg .st-current .msg-label, .dg .st-current .cluster-title { fill: var(--glow); }
-    .dg .mask-stroke { fill: none; stroke: #fff; stroke-width: 16; stroke-linecap: butt; }
-    .dg .mask-stroke.drawing { stroke-dasharray: 1 2; animation: draw .7s cubic-bezier(.45, 0, .2, 1) var(--d, 0ms) both; }
-    @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    /* ---------- Live demos ---------- */
+    harpy-diagram.demo { display: block; }
+    harpy-diagram:not(:defined) { display: block; min-height: 420px; border: 1px solid var(--line); border-radius: 4px; }
 
     /* ---------- Syntax section ---------- */
     .syntax { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 48px; align-items: start; }
@@ -286,15 +215,12 @@
 </head>
 <body>
 
-<!-- Shared SVG definitions: the meander tile and the chevron arrowhead. -->
+<!-- Shared SVG definitions: the meander tile. -->
 <svg class="defs" aria-hidden="true" focusable="false">
   <defs>
     <pattern id="meander" width="26" height="26" patternUnits="userSpaceOnUse">
       <path d="M0 24.5H26 M0 1.5H26 M3 24.5V6H21V19H9V11H15" fill="none" stroke="currentColor" stroke-width="1.2" style="color: var(--bronze-deep)"/>
     </pattern>
-    <marker id="chev" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
-      <path d="M1.5 1.5 9 5 1.5 8.5" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    </marker>
   </defs>
 </svg>
 
@@ -339,47 +265,52 @@
     <div class="section-head">
       <p class="eyebrow">The idea</p>
       <h2>Reveal the diagram the way you would explain it</h2>
-      <p class="lede">Each step lights up what it adds. What came before cools to bronze, and the summary brings the whole picture back.</p>
+      <p class="lede">Each step lights up what it adds. What came before steps back, and the summary brings the whole picture back. Colours tell you who is responsible for what.</p>
     </div>
 
-    <figure class="demo flow" data-stepper tabindex="0" aria-label="Checkout flow, step-by-step diagram. Use the left and right arrow keys to move between steps.">
-      <div class="stage">
-        <svg class="dg" viewBox="0 0 1080 290" role="img" aria-labelledby="flow-title">
-          <title id="flow-title">Checkout flow: the customer fills a cart, pays, and the order goes either to the warehouse or back to the cart with an error.</title>
-          <g data-step="0"><rect class="shape" x="20" y="128" width="124" height="44" rx="22"/><text x="82" y="150">Customer</text></g>
-          <path class="edge" data-step="0" d="M144 150H195" marker-end="url(#chev)"/>
-          <g data-step="0"><rect class="shape" x="196" y="128" width="104" height="44" rx="3"/><text x="248" y="150">Cart</text></g>
+    <harpy-diagram class="demo" id="demo-flow">
+      <script type="text/harpy">
+        # Checkout, end to end
 
-          <path class="edge" data-step="1" d="M300 150H337" marker-end="url(#chev)"/>
-          <g data-step="1"><polygon class="shape" points="338,150 402,104 466,150 402,196"/><text x="402" y="150">Payment OK?</text></g>
+        ```harpy
+        flowchart LR
+        %% @step browse "In the browser"
+          subgraph FE [Storefront]
+            U([Customer]) --> C[Cart]
+          end
+        %% @step pay "Paying" focus=P
+          subgraph API [Order service]
+            C --> P{Payment OK?}
+            P -->|yes| O[Create order]
+            P -->|no| R[Show error]
+          end
+          R -.-> C
+        %% @step persist "Persisting"
+          O --> DB[(Orders DB)]
+        %% @step ship "Fulfilment"
+          subgraph WH [Warehouse]
+            K[Pick & pack] --> S[Ship]
+          end
+          O --> K
+        ```
 
-          <path class="edge" data-step="2" d="M402 104V90Q402 80 412 80H547" marker-end="url(#chev)"/>
-          <text class="edge-label" data-step="2" x="478" y="67">yes</text>
-          <g data-step="2"><rect class="shape" x="548" y="58" width="132" height="44" rx="3"/><text x="614" y="80">Create order</text></g>
-          <path class="edge" data-step="2" d="M402 196V210Q402 220 412 220H547" marker-end="url(#chev)"/>
-          <text class="edge-label" data-step="2" x="478" y="207">no</text>
-          <g data-step="2"><rect class="shape" x="548" y="198" width="132" height="44" rx="3"/><text x="614" y="220">Show error</text></g>
-          <path class="edge dashed" data-step="2" d="M614 242V256Q614 266 604 266H258Q248 266 248 256V173" marker-end="url(#chev)"/>
+        ## browse
+        The customer adds items. Nothing leaves the **storefront** yet: the cart lives in session storage.
 
-          <g data-step="3"><rect class="cluster-frame" x="728" y="22" width="332" height="120" rx="4"/><text class="cluster-title" x="744" y="40">WAREHOUSE</text></g>
-          <path class="edge" data-step="3" d="M680 80H747" marker-end="url(#chev)"/>
-          <g data-step="3"><rect class="shape" x="748" y="58" width="120" height="44" rx="3"/><text x="808" y="80">Pick &amp; pack</text></g>
-          <path class="edge" data-step="3" d="M868 80H915" marker-end="url(#chev)"/>
-          <g data-step="3"><rect class="shape" x="916" y="58" width="120" height="44" rx="3"/><text x="976" y="80">Ship</text></g>
-        </svg>
-      </div>
-      <figcaption class="narration">
-        <p class="counter" aria-hidden="true"></p>
-        <ol class="steps" aria-live="polite">
-          <li><h3>Filling the cart</h3><p>The customer adds items. Nothing is stored yet: the cart lives in session storage.</p></li>
-          <li><h3>Paying</h3><p>One question decides the path. The payment provider answers within five seconds, or the attempt counts as failed.</p></li>
-          <li><h3>Outcomes</h3><p>Success creates the order. Failure sends the customer back to the cart with an inline error, and nothing is lost.</p></li>
-          <li><h3>Fulfilment</h3><p>The order moves to the warehouse queue, where picking and shipping happen asynchronously.</p></li>
-          <li data-summary><h3>The whole picture</h3><p>The flow stays stateless until <em>Create order</em>. Everything after that belongs to the warehouse.</p></li>
-        </ol>
-        <div class="controls"></div>
-      </figcaption>
-    </figure>
+        ## pay
+        One question decides the path. The order service waits at most five seconds for the payment provider.
+
+        ## persist
+        Only a successful payment writes anything: one row in the orders database.
+
+        ## ship
+        The warehouse picks the order up from a queue and handles it asynchronously.
+
+        ## summary
+        Three teams, three colours: the storefront owns the cart, the order service owns money and data,
+        and the warehouse owns everything physical.
+      </script>
+    </harpy-diagram>
   </section>
 
   <!-- ===== Syntax ===== -->
@@ -389,35 +320,37 @@
       <h2>Write it like Mermaid. Narrate it in Markdown.</h2>
     </div>
     <div class="syntax">
-<pre class="code"><code><span class="c-md"># Checkout flow</span>
+<pre class="code"><code><span class="c-md"># Checkout, end to end</span>
 
 <span class="c-dim">```harpy</span>
 <span class="c-kw">flowchart</span> LR
-<span class="c-step">%% @step cart "Filling the cart"</span>
-  U([Customer]) <span class="c-kw">--></span> C[Cart]
-<span class="c-step">%% @step pay "Paying" focus=P</span>
-  C <span class="c-kw">--></span> P{Payment OK?}
-<span class="c-step">%% @step outcome "Outcomes"</span>
-  P <span class="c-kw">--></span>|yes| O[Create order]
-  P <span class="c-kw">--></span>|no| R[Show error]
-  R <span class="c-kw">-.-></span> C
-<span class="c-step">%% @step ship "Fulfilment"</span>
-  <span class="c-kw">subgraph</span> W [Warehouse]
-    K[Pick &amp; pack] <span class="c-kw">--></span> S[Ship]
+<span class="c-step">%% @step browse "In the browser"</span>
+  <span class="c-kw">subgraph</span> FE [Storefront]
+    U([Customer]) <span class="c-kw">--></span> C[Cart]
   <span class="c-kw">end</span>
-  O <span class="c-kw">--></span> K
+<span class="c-step">%% @step pay "Paying" focus=P</span>
+  <span class="c-kw">subgraph</span> API [Order service]
+    C <span class="c-kw">--></span> P{Payment OK?}
+    P <span class="c-kw">--></span>|yes| O[Create order]
+    P <span class="c-kw">--></span>|no| R[Show error]
+  <span class="c-kw">end</span>
+  R <span class="c-kw">-.-></span> C
+<span class="c-step">%% @step persist "Persisting"</span>
+  O <span class="c-kw">--></span> DB[(Orders DB)]
+<span class="c-dim">…</span>
 <span class="c-dim">```</span>
 
-<span class="c-md">## cart</span>
-The customer adds items. Nothing is stored yet…
+<span class="c-md">## browse</span>
+The customer adds items…
 
 <span class="c-md">## summary</span>
-The flow stays stateless until *Create order*…</code></pre>
+Three teams, three colours…</code></pre>
       <ol class="points">
         <li><span class="numeral">I</span><h3>Steps are comments</h3><p><code>%% @step</code> lines are Mermaid comments, so the same source still renders anywhere Mermaid does, including GitHub.</p></li>
         <li><span class="numeral">II</span><h3>Narration is Markdown</h3><p>A <code>## step-id</code> section after the diagram describes that step, with links, emphasis and code.</p></li>
         <li><span class="numeral">III</span><h3>Focus where it matters</h3><p><code>focus=</code>, <code>show=</code> and <code>hide=</code> point attention at specific nodes, edges or participants.</p></li>
-        <li><span class="numeral">IV</span><h3>A summary closes the story</h3><p><code>## summary</code> brings back the whole diagram with its conclusion.</p></li>
+        <li><span class="numeral">IV</span><h3>Colour by responsibility</h3><p>Each <code>subgraph</code> and sequence <code>box</code> gets its own colour. Pick one with <code>class API lapis</code> or <code>box lapis Client</code>.</p></li>
+        <li><span class="numeral">V</span><h3>A summary closes the story</h3><p><code>## summary</code> brings back the whole diagram with its conclusion.</p></li>
       </ol>
     </div>
   </section>
@@ -428,40 +361,49 @@ The flow stays stateless until *Create order*…</code></pre>
       <p class="eyebrow">Sequence diagrams</p>
       <h2>Every message, in the order it happens</h2>
     </div>
-    <figure class="demo seq" data-stepper tabindex="0" aria-label="Login sequence, step-by-step diagram. Use the left and right arrow keys to move between steps.">
-      <div class="stage">
-        <svg class="dg" viewBox="0 0 680 400" role="img" aria-labelledby="seq-title">
-          <title id="seq-title">Login sequence between the browser, the API and the database.</title>
-          <g data-step="0"><line class="lifeline" x1="120" y1="56" x2="120" y2="392"/><rect class="shape" x="50" y="16" width="140" height="40" rx="3"/><text x="120" y="36">Browser</text></g>
-          <g data-step="0"><line class="lifeline" x1="340" y1="56" x2="340" y2="392"/><rect class="shape" x="270" y="16" width="140" height="40" rx="3"/><text x="340" y="36">API</text></g>
-          <g data-step="0"><line class="lifeline" x1="560" y1="56" x2="560" y2="392"/><rect class="shape" x="490" y="16" width="140" height="40" rx="3"/><text x="560" y="36">Database</text></g>
-          <g data-step="0"><path class="edge" d="M120 112H337" marker-end="url(#chev)"/><text class="msg-label" x="230" y="99">POST /login</text></g>
+    <harpy-diagram class="demo" id="demo-seq">
+      <script type="text/harpy">
+        # Logging in
 
-          <g data-step="1"><path class="edge" d="M340 160H557" marker-end="url(#chev)"/><text class="msg-label" x="450" y="147">find user</text></g>
-          <g data-step="1"><path class="edge dashed" d="M560 204H343" marker-end="url(#chev)"/><text class="msg-label" x="450" y="191">user + hash</text></g>
+        ```harpy
+        sequenceDiagram
+          box lapis Client
+            actor U as User
+            participant B as Browser
+          end
+          box verdigris Backend
+            participant A as API
+            participant D@{ "type": "database" } as Users DB
+          end
+        %% @step request "Credentials"
+          U->>B: submit the form
+          B->>+A: POST /login
+        %% @step check "Checking the password" focus=A,D
+          A->>D: find user by email
+          D-->>A: user + bcrypt hash
+          Note over A,D: The hash never leaves the backend
+        %% @step token "Answering"
+          alt password matches
+            A-->>B: 200 + session cookie
+          else wrong password
+            A-->>-B: 401
+          end
+          B-->>U: show the result
+        ```
 
-          <g data-step="2">
-            <rect class="frame" x="66" y="234" width="330" height="146" rx="3"/>
-            <path class="tag" d="M66 234H114V250L106 258H66Z"/><text class="tag-text" x="74" y="246">ALT</text>
-            <text class="cond" x="124" y="246">password matches</text>
-            <line class="divider" x1="66" y1="312" x2="396" y2="312"/>
-            <text class="cond" x="76" y="328">wrong password</text>
-          </g>
-          <g data-step="2"><path class="edge dashed" d="M340 288H123" marker-end="url(#chev)"/><text class="msg-label" x="230" y="275">200 + JWT</text></g>
-          <g data-step="2"><path class="edge dashed" d="M340 362H123" marker-end="url(#chev)"/><text class="msg-label" x="230" y="349">401</text></g>
-        </svg>
-      </div>
-      <figcaption class="narration">
-        <p class="counter" aria-hidden="true"></p>
-        <ol class="steps" aria-live="polite">
-          <li><h3>Credentials</h3><p>The browser sends the credentials to the API over HTTPS.</p></li>
-          <li><h3>Checking the password</h3><p>The API loads the user and compares the password with the stored bcrypt hash.</p></li>
-          <li><h3>Issuing a token</h3><p>A match returns a short-lived JWT. A mismatch returns <code>401</code> without saying which part was wrong.</p></li>
-          <li data-summary><h3>The whole picture</h3><p>The database never sees the plain password, and the browser never sees the hash.</p></li>
-        </ol>
-        <div class="controls"></div>
-      </figcaption>
-    </figure>
+        ## request
+        The browser posts the credentials to the API over HTTPS.
+
+        ## check
+        The API loads the user and compares the password with the stored **bcrypt** hash.
+
+        ## token
+        A match sets a short-lived session cookie. A mismatch returns `401` without saying which part was wrong.
+
+        ## summary
+        The database never sees the plain password, and the browser never sees the hash.
+      </script>
+    </harpy-diagram>
   </section>
 
   <!-- ===== Features ===== -->
@@ -497,7 +439,7 @@ The flow stays stateless until *Create order*…</code></pre>
         <p class="eyebrow">Get started</p>
         <h2>Drop it into any page</h2>
         <p class="lede" style="margin-top: 16px">Add the script, then put your document in a <code>&lt;harpy-diagram&gt;</code>. Use <code>mode="split"</code> to show the editor next to the diagram.</p>
-        <p class="note">Harpy is in early development. The current build still draws diagrams through Mermaid. The renderer shown on this page, Harpy’s own, is in progress.</p>
+        <p class="note">Harpy is in early development. It draws flowcharts and sequence diagrams with its own renderer; more diagram types will follow.</p>
       </div>
 <pre class="code"><code><span class="c-dim">&lt;!-- Load Harpy once per page --&gt;</span>
 <span class="c-kw">&lt;script</span> type=<span class="c-str">"module"</span> src=<span class="c-str">"harpy/src/harpy.js"</span><span class="c-kw">&gt;&lt;/script&gt;</span>
@@ -535,134 +477,16 @@ The flow stays stateless until *Create order*…</code></pre>
     const current = root.dataset.theme || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     const next = current === 'light' ? 'dark' : 'light';
     root.dataset.theme = next;
+    syncDiagramTheme();
     try { localStorage.setItem('harpy-theme', next); } catch {}
   });
-
-  // Stepper: drives every [data-stepper] figure. Elements carry data-step="n"; list items are
-  // the narration, and the item marked data-summary shows the whole diagram.
-  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-  const STAGGER = 140;
-  const icon = (d, cls = '') => `<svg class="${cls}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
-  let maskCount = 0;
-
-  function initStepper(root) {
-    const svg = root.querySelector('svg.dg');
-    const items = [...root.querySelectorAll('.steps > li')];
-    const counter = root.querySelector('.counter');
-    const controls = root.querySelector('.controls');
-    const els = [...svg.querySelectorAll('[data-step]')];
-    const stepCount = items.filter((li) => !li.hasAttribute('data-summary')).length;
-    const [vx, vy, vw, vh] = svg.getAttribute('viewBox').split(/\s+/).map(Number);
-    let index = -1;
-    let timer = null;
-
-    // Each edge gets a mask whose stroke "draws" the edge in, arrowhead included, so dashed and
-    // solid edges animate the same way.
-    const ns = 'http://www.w3.org/2000/svg';
-    const defs = svg.insertBefore(document.createElementNS(ns, 'defs'), svg.firstChild);
-    const drawMasks = new Map();
-    for (const edge of svg.querySelectorAll('.edge')) {
-      const mask = document.createElementNS(ns, 'mask');
-      const id = `draw-${++maskCount}`;
-      mask.id = id;
-      for (const [k, v] of Object.entries({ maskUnits: 'userSpaceOnUse', x: vx, y: vy, width: vw, height: vh })) mask.setAttribute(k, v);
-      const stroke = document.createElementNS(ns, 'path');
-      stroke.setAttribute('d', edge.getAttribute('d'));
-      stroke.setAttribute('pathLength', '1');
-      stroke.setAttribute('class', 'mask-stroke');
-      mask.append(stroke);
-      defs.append(mask);
-      edge.setAttribute('mask', `url(#${id})`);
-      drawMasks.set(edge, stroke);
-    }
-
-    controls.innerHTML = `
-      <button class="round prev" type="button" aria-label="Previous step">${icon('M10 3.5 5.5 8l4.5 4.5')}</button>
-      <div class="pips" role="group" aria-label="Steps">${items.map((li, i) => `<button class="pip${li.hasAttribute('data-summary') ? ' summary' : ''}" type="button" data-i="${i}" aria-label="${li.hasAttribute('data-summary') ? 'Summary' : `Step ${i + 1}`}: ${li.querySelector('h3').textContent}"></button>`).join('')}</div>
-      <button class="round next" type="button" aria-label="Next step">${icon('M6 3.5 10.5 8 6 12.5')}</button>
-      <button class="round play" type="button" aria-label="Play steps automatically" aria-pressed="false">${icon('M5 3.5v9l7-4.5z', 'i-play')}${icon('M5.5 4v8M10.5 4v8', 'i-pause')}</button>`;
-    const prev = controls.querySelector('.prev');
-    const next = controls.querySelector('.next');
-    const play = controls.querySelector('.play');
-    const pips = [...controls.querySelectorAll('.pip')];
-
-    function go(i, { user = true } = {}) {
-      i = Math.max(0, Math.min(items.length - 1, i));
-      if (user) stop();
-      const forward = i === index + 1;
-      const summary = items[i].hasAttribute('data-summary');
-      let order = 0;
-      for (const el of els) {
-        const s = Number(el.dataset.step);
-        const state = summary ? 'all' : s < i ? 'past' : s === i ? 'current' : 'hidden';
-        el.classList.remove('st-hidden', 'st-past', 'st-current');
-        if (state !== 'all') el.classList.add(`st-${state}`);
-        const entering = state === 'current' && forward;
-        const delay = entering ? order++ * STAGGER : 0;
-        el.style.setProperty('--d', `${delay}ms`);
-        const edges = el.matches('.edge') ? [el] : [...el.querySelectorAll('.edge')];
-        for (const edge of edges) {
-          const stroke = drawMasks.get(edge);
-          stroke.classList.remove('drawing');
-          if (entering) {
-            stroke.style.setProperty('--d', `${delay}ms`);
-            void getComputedStyle(stroke).animationName; // restart the animation
-            stroke.classList.add('drawing');
-          }
-        }
-      }
-      items.forEach((li, n) => li.classList.toggle('is-active', n === i));
-      counter.innerHTML = summary ? '<b>Summary</b>' : `Step <b>${ROMAN[i] ?? i + 1}</b> of ${ROMAN[stepCount - 1] ?? stepCount}`;
-      pips.forEach((p, n) => {
-        p.classList.toggle('done', n < i);
-        if (n === i) p.setAttribute('aria-current', 'step'); else p.removeAttribute('aria-current');
-      });
-      prev.disabled = i === 0;
-      next.disabled = i === items.length - 1;
-      index = i;
-    }
-
-    function stop() {
-      clearInterval(timer);
-      timer = null;
-      play.setAttribute('aria-pressed', 'false');
-    }
-
-    prev.addEventListener('click', () => go(index - 1));
-    next.addEventListener('click', () => go(index + 1));
-    pips.forEach((p) => p.addEventListener('click', () => go(Number(p.dataset.i))));
-    play.addEventListener('click', () => {
-      if (timer) return stop();
-      if (index === items.length - 1) go(0, { user: false });
-      play.setAttribute('aria-pressed', 'true');
-      timer = setInterval(() => {
-        if (index >= items.length - 1) return stop();
-        go(index + 1, { user: false });
-      }, 3400);
-    });
-    root.addEventListener('keydown', (e) => {
-      const map = { ArrowRight: 1, ArrowLeft: -1 };
-      if (e.key in map) { e.preventDefault(); go(index + map[e.key]); }
-      else if (e.key === 'Home') { e.preventDefault(); go(0); }
-      else if (e.key === 'End') { e.preventDefault(); go(items.length - 1); }
-    });
-
-    // Start hidden and play the first step in when the figure scrolls into view.
-    els.forEach((el) => el.classList.add('st-hidden'));
-    counter.innerHTML = `Step <b>I</b> of ${ROMAN[stepCount - 1] ?? stepCount}`;
-    items[0].classList.add('is-active');
-    const reveal = () => index === -1 && go(0, { user: false });
-    if ('IntersectionObserver' in window) {
-      const io = new IntersectionObserver((entries) => {
-        if (entries.some((e) => e.isIntersecting)) { reveal(); io.disconnect(); }
-      }, { threshold: 0.35 });
-      io.observe(svg);
-    } else {
-      reveal();
-    }
+  // Diagrams follow the page theme when it has been chosen explicitly.
+  function syncDiagramTheme() {
+    const theme = document.documentElement.dataset.theme;
+    document.querySelectorAll('harpy-diagram').forEach((d) => (theme ? d.setAttribute('theme', theme) : d.removeAttribute('theme')));
   }
+  syncDiagramTheme();
 
-  document.querySelectorAll('[data-stepper]').forEach(initStepper);
 </script>
 </body>
 </html>

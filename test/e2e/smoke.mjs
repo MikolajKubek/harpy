@@ -1,5 +1,5 @@
 // End-to-end smoke test: serves the repo, opens examples/index.html in Chromium and steps
-// through both diagrams. Needs network access (Mermaid and marked load from a CDN).
+// through both diagrams. Needs network access (dagre, fonts and marked load from CDNs).
 //
 //   npm run test:e2e                       # uses Playwright's bundled browser
 //   CHROMIUM_PATH=/path/to/chrome npm run test:e2e
@@ -50,18 +50,20 @@ try {
   await page.goto(`${base}/examples/index.html`);
   await page.waitForFunction(() => [...document.querySelectorAll('harpy-diagram')].every((d) => d.shadowRoot.querySelector('.svg-host svg') && d.steps.length));
 
-  // Visibility of each unit, read from the classes Player puts on bound SVG elements.
+  // Unit states, read from the classes the player puts on each unit's elements.
   const state = (index) =>
     page.evaluate((i) => {
       const d = document.querySelectorAll('harpy-diagram')[i];
-      const els = [...d.shadowRoot.querySelectorAll('.harpy-el')];
-      const count = (cls) => els.filter((e) => e.classList.contains(cls)).length;
+      const units = new Map();
+      for (const el of d.shadowRoot.querySelectorAll('[data-unit]')) {
+        const s = el.classList.contains('hd-hidden') ? 'hidden' : el.classList.contains('hd-past') ? 'past' : el.classList.contains('hd-current') ? 'current' : 'shown';
+        units.set(el.dataset.unit, s);
+      }
+      const count = (s) => [...units.values()].filter((v) => v === s).length;
       return {
         step: d.step,
-        hidden: count('harpy-hidden'),
-        dim: count('harpy-dim'),
-        focus: count('harpy-focus'),
-        total: els.length,
+        hidden: count('hidden'), past: count('past'), current: count('current'), shown: count('shown'), total: units.size,
+        currentUnits: [...units].filter(([, v]) => v === 'current').map(([k]) => k),
         counter: d.shadowRoot.querySelector('.counter').textContent,
         title: d.shadowRoot.querySelector('.step-title').textContent,
         description: d.shadowRoot.querySelector('.description').textContent.trim(),
@@ -72,32 +74,33 @@ try {
 
   await check('flowchart: steps and summary', async () => {
     const steps = await page.evaluate(() => document.querySelector('#checkout').steps.map((s) => s.id));
-    assert.deepEqual(steps, ['cart', 'pay', 'outcome', 'ship', 'summary']);
+    assert.deepEqual(steps, ['browse', 'pay', 'persist', 'ship', 'summary']);
   });
 
-  await check('flowchart: step 1 shows only the first nodes', async () => {
+  await check('flowchart: step 1 shows only its own units', async () => {
+    await page.locator('#checkout').scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelector('#checkout').shadowRoot.querySelector('[data-unit="node:U"]:not(.hd-hidden)'));
     const s = await state(0);
     assert.equal(s.error, '');
     assert.equal(s.warnings, '');
-    assert.equal(s.counter, 'Step 1 of 4');
-    assert.equal(s.title, 'Filling the cart');
-    assert.match(s.description, /session storage/);
-    // Customer, Cart and the edge (path + no label) are visible; everything else is hidden.
-    assert.equal(s.total - s.hidden, 3, JSON.stringify(s));
-    assert.equal(s.dim, 0);
+    assert.equal(s.counter, 'Step I of IV');
+    assert.equal(s.title, 'In the browser');
+    assert.match(s.description, /storefront/);
+    assert.equal(s.total - s.hidden, 4, JSON.stringify(s)); // Storefront group, Customer, edge, Cart
+    assert.equal(s.past, 0);
   });
   if (shots) {
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(1200);
     await page.locator('#checkout').screenshot({ path: `${shots}/flow-1.png` });
   }
 
-  await check('flowchart: next reveals more, dims earlier elements, highlights focus', async () => {
+  await check('flowchart: focus glows, new units stay bright, earlier ones dim', async () => {
     await page.locator('#checkout').evaluate((d) => d.next());
     const s = await state(0);
     assert.equal(s.step, 1);
-    assert.equal(s.total - s.hidden, 5, JSON.stringify(s));
-    assert.equal(s.focus, 1); // focus=P
-    assert.ok(s.dim >= 3, JSON.stringify(s));
+    assert.deepEqual(s.currentUnits, ['node:P']);
+    assert.equal(s.past, 4, JSON.stringify(s));
+    assert.ok(s.shown >= 6, JSON.stringify(s)); // the rest of the order service step
   });
 
   await check('flowchart: keyboard navigation reaches the summary, which shows everything', async () => {
@@ -105,52 +108,53 @@ try {
     await page.keyboard.press('End');
     const s = await state(0);
     assert.equal(s.counter, 'Summary');
-    assert.equal(s.hidden, 0);
-    assert.equal(s.dim, 0);
-    assert.match(s.description, /stateless/);
+    assert.equal(s.shown, s.total);
+    assert.match(s.description, /Three teams/);
     await page.keyboard.press('ArrowLeft');
     const back = await state(0);
     assert.equal(back.title, 'Fulfilment');
-    assert.ok(back.hidden === 0 && back.dim > 0, JSON.stringify(back));
+    assert.ok(back.hidden === 0 && back.past > 0 && back.current > 0, JSON.stringify(back));
   });
-  if (shots) {
-    await page.waitForTimeout(800);
-    await page.locator('#checkout').screenshot({ path: `${shots}/flow-4.png` });
-  }
 
-  await check('sequence: messages appear step by step, block appears with its first line', async () => {
+  await check('sequence: boxes, participants and messages appear step by step', async () => {
     const d = page.locator('harpy-diagram').nth(1);
+    await d.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelectorAll('harpy-diagram')[1].shadowRoot.querySelector('[data-unit="actor:U"]:not(.hd-hidden)'));
     const s0 = await state(1);
     assert.equal(s0.error, '');
     assert.equal(s0.warnings, '');
-    const s1 = await (await d.evaluate((el) => el.next()), state(1));
-    const s2 = await (await d.evaluate((el) => el.next()), state(1));
+    assert.ok(['group:box-1', 'group:box-2', 'actor:U', 'actor:A', 'actor:D'].every((u) => s0.currentUnits.includes(u)), JSON.stringify(s0));
+    await d.evaluate((el) => el.next());
+    const s1 = await state(1);
+    assert.deepEqual(s1.currentUnits.sort(), ['actor:A', 'actor:D']);
+    await d.evaluate((el) => el.next());
+    const s2 = await state(1);
     assert.ok(s0.hidden > s1.hidden && s1.hidden > s2.hidden && s2.hidden === 0, JSON.stringify([s0, s1, s2]));
-    assert.equal(s1.focus, 3); // focus=D: participant box, lifeline and bottom box
   });
   if (shots) {
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(1200);
     await page.locator('harpy-diagram').nth(1).screenshot({ path: `${shots}/sequence-split.png` });
   }
 
-  await check('mode switch and live editing', async () => {
+  await check('mode switch, live editing and errors with line numbers', async () => {
     const d = page.locator('#checkout');
     await d.locator('.modes button[data-mode="split"]').click();
     assert.equal(await d.getAttribute('mode'), 'split');
     assert.ok(await d.locator('textarea').isVisible());
-    await d.evaluate((el) => el.goTo('cart'));
+    await d.evaluate((el) => el.goTo('browse'));
     await d.locator('textarea').evaluate((t) => {
       t.value = t.value.replace('[Cart]', '[Basket]');
       t.dispatchEvent(new Event('input'));
     });
-    await page.waitForFunction(() => document.querySelector('#checkout').shadowRoot.querySelector('svg')?.textContent.includes('Basket'));
+    await page.waitForFunction(() => document.querySelector('#checkout').shadowRoot.querySelector('svg.hd')?.textContent.includes('Basket'));
     assert.equal(await d.evaluate((el) => el.step), 0, 'stays on the same step after editing');
     await d.locator('textarea').evaluate((t) => {
-      t.value = t.value.replace('C --> P', 'C --> --> P');
+      t.value = t.value.replace('C --> P', 'C --> ');
       t.dispatchEvent(new Event('input'));
     });
     await page.waitForFunction(() => document.querySelector('#checkout').shadowRoot.querySelector('.error').textContent);
-    assert.ok(await d.evaluate((el) => !!el.shadowRoot.querySelector('svg')), 'keeps the last good render');
+    assert.match(await d.evaluate((el) => el.shadowRoot.querySelector('.error').textContent), /^Line 8: Expected a node after the edge/);
+    assert.ok(await d.evaluate((el) => !!el.shadowRoot.querySelector('svg.hd')), 'keeps the last good render');
     await d.locator('.modes button[data-mode="preview"]').click();
     assert.ok(!(await d.locator('textarea').isVisible()));
   });
